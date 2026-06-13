@@ -197,19 +197,25 @@ public class RoutePlannerInstance
         int unknowns = route.Count(p => p.PointType == MapPointType.Unknown);
 
         var (dW, rW) = GetEffectiveWeights();
-        string counts = $"{elites}精英 {rests}休息 {treasures}宝箱 {shops}商店 {monsters}普通";
-        if (unknowns > 0) counts += $" {unknowns}未知";
+        string counts = BuildCountsString(elites, rests, treasures, shops, monsters, unknowns);
 
         return index switch
         {
-            0 => $"自定义 危险{F(danger)} 奖励{F(reward)} | {counts}",
-            1 => $"高收益 奖励{F(reward)} | {counts}",
-            2 => $"保守 危险{F(danger)} | {counts}",
+            0 => $"{I18n.Tr("自定义")} {I18n.Tr("危险")}{F(danger)} {I18n.Tr("奖励")}{F(reward)} | {counts}",
+            1 => $"{I18n.Tr("高收益")} {I18n.Tr("奖励")}{F(reward)} | {counts}",
+            2 => $"{I18n.Tr("保守")} {I18n.Tr("危险")}{F(danger)} | {counts}",
             _ => "",
         };
     }
 
     private static string F(double v) => v.ToString("F0");
+
+    private static string BuildCountsString(int elites, int rests, int treasures, int shops, int monsters, int unknowns)
+    {
+        string counts = $"{elites}{I18n.Tr("精英")} {rests}{I18n.Tr("休息")} {treasures}{I18n.Tr("宝箱")} {shops}{I18n.Tr("商店")} {monsters}{I18n.Tr("普通")}";
+        if (unknowns > 0) counts += $" {unknowns}{I18n.Tr("未知")}";
+        return counts;
+    }
 
     private void RecalculateRoutes()
     {

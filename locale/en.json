@@ -1,0 +1,36 @@
+{
+  "_meta": {
+    "language": "English",
+    "version": "1.0"
+  },
+  "strings": {
+    "◇ 路线导航仪": "◇ Route Navigator",
+    "导航参数": "Navigation",
+    "危险容限": "Danger Tolerance",
+    "收益渴求": "Reward Pursuit",
+    "保守": "Low",
+    "求稳": "Safe",
+    "均衡": "Bal",
+    "激进": "Aggr",
+    "极端": "Xtrm",
+    "星图数据": "Star Chart",
+    "推荐航线": "Routes",
+    "◉ 自定义": "◉ Custom",
+    "◆ 高收益": "◆ High Reward",
+    "● 保守": "● Safe",
+    "✦ 绘制航线": "✦ Draw Route",
+    "✧ 清除": "✧ Clear",
+    "计算中...": "Calculating...",
+    "精英": "Elite",
+    "怪物": "Monster",
+    "休息": "Rest",
+    "商店": "Shop",
+    "宝箱": "Treasure",
+    "未知": "Unknown",
+    "普通": "Normal",
+    "自定义": "Custom",
+    "高收益": "High Reward",
+    "危险": "Danger",
+    "奖励": "Reward"
+  }
+}

@@ -44,6 +44,10 @@ public partial class UIRoutePlannerPanel : Control
     private Button? _drawBtn;
     private Button? _clearBtn;
     private Button? _collapseBtn;
+    private Button? _langBtn;
+
+    // I18n
+    private readonly List<(Control control, string key)> _i18nRegistry = new();
 
     // State
     private bool _isCollapsed;
@@ -54,6 +58,7 @@ public partial class UIRoutePlannerPanel : Control
         _instance = instance;
         Name = "RoutePlannerPanel";
         BuildUI();
+        I18n.LanguageChanged += OnLanguageChanged;
     }
 
     public void SetSliderValues(double dangerWeight, double rewardWeight)
@@ -71,7 +76,51 @@ public partial class UIRoutePlannerPanel : Control
         RefreshWeights();
     }
 
-    private static readonly (string key, string name, Color color)[] _weightTypes =
+    private void OnLanguageChanged()
+    {
+        RefreshAllText();
+        _instance.MarkDirty();
+        UpdateLangButtonText();
+    }
+
+    private void OnLanguageToggle()
+    {
+        string next = I18n.CurrentLang == "zh" ? "en" : "zh";
+        I18n.SetLanguage(next);
+    }
+
+    private void UpdateLangButtonText()
+    {
+        if (_langBtn != null)
+            _langBtn.Text = I18n.CurrentLang == "zh" ? "中" : "EN";
+    }
+
+    private void RefreshAllText()
+    {
+        foreach (var (control, key) in _i18nRegistry)
+        {
+            if (control is Label label)
+                label.Text = I18n.Tr(key);
+            else if (control is Button button)
+                button.Text = I18n.Tr(key);
+        }
+        RefreshWeights();
+    }
+
+    private Label CreateLocalizedLabel(string key, int fontSize, Color color)
+    {
+        var label = CreateLabel(I18n.Tr(key), fontSize, color);
+        _i18nRegistry.Add((label, key));
+        return label;
+    }
+
+    private void RegisterButtonI18n(Button button, string key)
+    {
+        button.Text = I18n.Tr(key);
+        _i18nRegistry.Add((button, key));
+    }
+
+    private static readonly (string typeKey, string i18nKey, Color color)[] _weightTypes =
     {
         ("Elite",    "精英", new Color(1f, 0.45f, 0f)),
         ("Monster",  "怪物", new Color(0.9f, 0.55f, 0.3f)),
@@ -95,9 +144,9 @@ public partial class UIRoutePlannerPanel : Control
         var scores = _instance.GetEffectiveTypeScores();
         if (scores.Count == 0) return;
 
-        foreach (var (key, name, color) in _weightTypes)
+        foreach (var (typeKey, i18nKey, color) in _weightTypes)
         {
-            if (!scores.TryGetValue(key, out var s)) continue;
+            if (!scores.TryGetValue(typeKey, out var s)) continue;
 
             // Card container with floating background
             var card = new Panel();
@@ -113,7 +162,7 @@ public partial class UIRoutePlannerPanel : Control
             vbox.Position = new Vector2(6, 4);
 
             // Node type name
-            var nameLabel = new Label { Text = name, HorizontalAlignment = HorizontalAlignment.Center };
+            var nameLabel = new Label { Text = I18n.Tr(i18nKey), HorizontalAlignment = HorizontalAlignment.Center };
             nameLabel.AddThemeColorOverride("font_color", color);
             nameLabel.AddThemeFontSizeOverride("font_size", 11);
             vbox.AddChild(nameLabel);
@@ -181,10 +230,15 @@ public partial class UIRoutePlannerPanel : Control
 
         // --- Header ---
         var header = new HBoxContainer();
-        var title = CreateLabel("◇ 路线导航仪", 14, StarWhite);
+        var title = CreateLocalizedLabel("◇ 路线导航仪", 14, StarWhite);
         title.AddThemeFontSizeOverride("font_size", 14);
         header.AddChild(title);
         header.AddChild(new Control { CustomMinimumSize = new Vector2(10, 0), SizeFlagsHorizontal = SizeFlags.ExpandFill });
+
+        _langBtn = CreateIconButton(I18n.CurrentLang == "zh" ? "中" : "EN", 9);
+        _langBtn.CustomMinimumSize = new Vector2(22, 22);
+        _langBtn.Pressed += OnLanguageToggle;
+        header.AddChild(_langBtn);
 
         _collapseBtn = CreateIconButton("⊟", 22);
         _collapseBtn.CustomMinimumSize = new Vector2(22, 22);
@@ -207,7 +261,7 @@ public partial class UIRoutePlannerPanel : Control
         _dangerCheckBox.ButtonPressed = true;
         _dangerCheckBox.Toggled += OnDangerCheckToggled;
         dangerHeader.AddChild(_dangerCheckBox);
-        dangerHeader.AddChild(CreateLabel("危险容限", 12, WarmOrange));
+        dangerHeader.AddChild(CreateLocalizedLabel("危险容限", 12, WarmOrange));
         content.AddChild(dangerHeader);
 
         var dangerBox = new HBoxContainer();
@@ -232,7 +286,7 @@ public partial class UIRoutePlannerPanel : Control
         _rewardCheckBox.ButtonPressed = true;
         _rewardCheckBox.Toggled += OnRewardCheckToggled;
         rewardHeader.AddChild(_rewardCheckBox);
-        rewardHeader.AddChild(CreateLabel("收益渴求", 12, IceBlue));
+        rewardHeader.AddChild(CreateLocalizedLabel("收益渴求", 12, IceBlue));
         content.AddChild(rewardHeader);
 
         var rewardBox = new HBoxContainer();
@@ -255,18 +309,23 @@ public partial class UIRoutePlannerPanel : Control
         presetBox.AddThemeConstantOverride("separation", 0);
         var consBtn = CreatePresetButton("保守");
         consBtn.Pressed += () => _instance.OnPresetSelected("conservative");
+        RegisterButtonI18n(consBtn, "保守");
         presetBox.AddChild(consBtn);
         var safeBtn = CreatePresetButton("求稳");
         safeBtn.Pressed += () => _instance.OnPresetSelected("safe_reward");
+        RegisterButtonI18n(safeBtn, "求稳");
         presetBox.AddChild(safeBtn);
         var balBtn = CreatePresetButton("均衡");
         balBtn.Pressed += () => _instance.OnPresetSelected("balanced");
+        RegisterButtonI18n(balBtn, "均衡");
         presetBox.AddChild(balBtn);
         var aggBtn = CreatePresetButton("激进");
         aggBtn.Pressed += () => _instance.OnPresetSelected("aggressive");
+        RegisterButtonI18n(aggBtn, "激进");
         presetBox.AddChild(aggBtn);
         var extBtn = CreatePresetButton("极端");
         extBtn.Pressed += () => _instance.OnPresetSelected("extreme");
+        RegisterButtonI18n(extBtn, "极端");
         presetBox.AddChild(extBtn);
         content.AddChild(presetBox);
 
@@ -281,15 +340,15 @@ public partial class UIRoutePlannerPanel : Control
         // --- Route list ---
         content.AddChild(CreateSectionHeader("推荐航线"));
 
-        _balancedBtn = CreateRouteButton("◉", "自定义", SoftPurple, out _balancedLabel);
+        _balancedBtn = CreateRouteButton("◉ 自定义", SoftPurple, out _balancedLabel);
         _balancedBtn.Pressed += () => OnRouteButtonPressed(0);
         content.AddChild(_balancedBtn);
 
-        _highRewardBtn = CreateRouteButton("◆", "高收益", Colors.Gold, out _highRewardLabel);
+        _highRewardBtn = CreateRouteButton("◆ 高收益", Colors.Gold, out _highRewardLabel);
         _highRewardBtn.Pressed += () => OnRouteButtonPressed(1);
         content.AddChild(_highRewardBtn);
 
-        _safeBtn = CreateRouteButton("●", "保守", LimeGreen, out _safeLabel);
+        _safeBtn = CreateRouteButton("● 保守", LimeGreen, out _safeLabel);
         _safeBtn.Pressed += () => OnRouteButtonPressed(2);
         content.AddChild(_safeBtn);
 
@@ -298,9 +357,11 @@ public partial class UIRoutePlannerPanel : Control
         actions.AddThemeConstantOverride("separation", 6);
         _drawBtn = CreateActionButton("✦ 绘制航线", WarmOrange, primary: true);
         _drawBtn.Pressed += () => _instance.OnDrawClicked();
+        RegisterButtonI18n(_drawBtn, "✦ 绘制航线");
         actions.AddChild(_drawBtn);
         _clearBtn = CreateActionButton("✧ 清除", Gold, primary: false);
         _clearBtn.Pressed += () => _instance.OnClearClicked();
+        RegisterButtonI18n(_clearBtn, "✧ 清除");
         actions.AddChild(_clearBtn);
         content.AddChild(actions);
 
@@ -483,13 +544,13 @@ public partial class UIRoutePlannerPanel : Control
         return btn;
     }
 
-    private static Button CreateRouteButton(string icon, string label, Color accentColor, out Label routeLabel)
+    private Button CreateRouteButton(string labelKey, Color accentColor, out Label routeLabel)
     {
         var btn = new Button();
         btn.ToggleMode = true;
-        btn.CustomMinimumSize = new Vector2(0, 28);
+        btn.CustomMinimumSize = new Vector2(0, 42);
         btn.SizeFlagsHorizontal = SizeFlags.ExpandFill;
-        btn.AddThemeFontSizeOverride("font_size", 11);
+        btn.AddThemeFontSizeOverride("font_size", 10);
 
         // Inner HBox for icon + route text
         var row = new HBoxContainer();
@@ -498,22 +559,24 @@ public partial class UIRoutePlannerPanel : Control
         row.OffsetLeft = 4;
         row.OffsetRight = -4;
 
-        var iconLabel = new Label { Text = $"{icon} {label}" };
+        var iconLabel = new Label { Text = I18n.Tr(labelKey) };
         iconLabel.AddThemeColorOverride("font_color", accentColor);
-        iconLabel.AddThemeFontSizeOverride("font_size", 11);
-        iconLabel.CustomMinimumSize = new Vector2(58, 0);
+        iconLabel.AddThemeFontSizeOverride("font_size", 10);
+        iconLabel.CustomMinimumSize = new Vector2(50, 0);
         iconLabel.VerticalAlignment = VerticalAlignment.Center;
+        _i18nRegistry.Add((iconLabel, labelKey));
         row.AddChild(iconLabel);
 
         routeLabel = new Label
         {
-            Text = "计算中...",
+            Text = I18n.Tr("计算中..."),
             HorizontalAlignment = HorizontalAlignment.Left,
             VerticalAlignment = VerticalAlignment.Center,
             ClipContents = false,
+            AutowrapMode = TextServer.AutowrapMode.Word,
         };
         routeLabel.AddThemeColorOverride("font_color", accentColor);
-        routeLabel.AddThemeFontSizeOverride("font_size", 11);
+        routeLabel.AddThemeFontSizeOverride("font_size", 10);
         routeLabel.SizeFlagsHorizontal = SizeFlags.ExpandFill;
         row.AddChild(routeLabel);
 
@@ -588,7 +651,7 @@ public partial class UIRoutePlannerPanel : Control
         return btn;
     }
 
-    private static Control CreateSectionHeader(string text)
+    private Control CreateSectionHeader(string i18nKey)
     {
         var hbox = new HBoxContainer();
         hbox.AddThemeConstantOverride("separation", 8);
@@ -601,7 +664,7 @@ public partial class UIRoutePlannerPanel : Control
         leftLine.SizeFlagsVertical = SizeFlags.ShrinkCenter;
         hbox.AddChild(leftLine);
 
-        var label = CreateLabel(text, 12, Gold);
+        var label = CreateLocalizedLabel(i18nKey, 12, Gold);
         hbox.AddChild(label);
 
         var rightLine = new ColorRect

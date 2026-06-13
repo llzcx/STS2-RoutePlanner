@@ -11,6 +11,7 @@ public static class RoutePlannerMod
         ModLogger.Init();
         ModLogger.Info("RoutePlanner mod initializing...");
 
+        I18n.Initialize();
         RoutePlannerInstance.Create();
         RouteScoringConfig.Initialize();
 
