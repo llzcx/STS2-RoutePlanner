@@ -234,11 +234,13 @@ public static class RouteScoringConfig
             },
             WeightPresets = new Dictionary<string, WeightPreset>
             {
-                ["conservative"] = new() { DangerWeight = 1.0, RewardWeight = 0.2 },
+                ["conservative"] = new() { DangerWeight = 0.0, RewardWeight = 0.5 },
+                ["safe_reward"] = new() { DangerWeight = 0.0, RewardWeight = 1.0 },
                 ["balanced"] = new() { DangerWeight = 0.5, RewardWeight = 0.5 },
-                ["aggressive"] = new() { DangerWeight = 0.2, RewardWeight = 1.0 },
+                ["aggressive"] = new() { DangerWeight = 1.0, RewardWeight = 1.0 },
+                ["extreme"] = new() { DangerWeight = 1.0, RewardWeight = 0.0 },
             },
-            DefaultWeights = new WeightPreset { DangerWeight = 0.5, RewardWeight = 0.5 },
+            DefaultWeights = new WeightPreset { DangerWeight = 0.0, RewardWeight = 0.5 },
         };
     }
 

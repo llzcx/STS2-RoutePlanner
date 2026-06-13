@@ -105,12 +105,14 @@
 
   "weight_presets": {
     "conservative": { "danger_weight": 0.0, "reward_weight": 0.5 },
+    "safe_reward":  { "danger_weight": 0.0, "reward_weight": 1.0 },
     "balanced":     { "danger_weight": 0.5, "reward_weight": 0.5 },
-    "aggressive":   { "danger_weight": 1.0, "reward_weight": 1.0 }
+    "aggressive":   { "danger_weight": 1.0, "reward_weight": 1.0 },
+    "extreme":      { "danger_weight": 1.0, "reward_weight": 0.0 }
   },
 
   "default_weights": {
-    "danger_weight": 0.5,
+    "danger_weight": 0.0,
     "reward_weight": 0.5
   }
 }

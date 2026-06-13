@@ -25,10 +25,10 @@ public class RoutePlannerInstance
     private UIRoutePlannerPanel? _panel;
     private RouteDrawingManager? _drawingManager;
 
-    private double _dangerWeight = 0.5;
+    private double _dangerWeight = 0.0;
     private double _rewardWeight = 0.5;
     private bool _dangerEnabled = true;
-    private bool _rewardEnabled;
+    private bool _rewardEnabled = true;
     private int _selectedRouteIndex;
     private Timer? _configPollTimer;
 
@@ -140,7 +140,7 @@ public class RoutePlannerInstance
         if (route != null)
         {
             ModLogger.Info($"Draw clicked — route has {route.Count} nodes");
-            _drawingManager?.DrawRoute(route, _panel?.LineColor ?? new Godot.Color(1, 1, 1));
+            _drawingManager?.DrawRoute(route, Colors.White);
         }
         else
         {
@@ -202,7 +202,7 @@ public class RoutePlannerInstance
 
         return index switch
         {
-            0 => $"综合 危险{F(danger)} 奖励{F(reward)} | {counts}",
+            0 => $"自定义 危险{F(danger)} 奖励{F(reward)} | {counts}",
             1 => $"高收益 奖励{F(reward)} | {counts}",
             2 => $"保守 危险{F(danger)} | {counts}",
             _ => "",
