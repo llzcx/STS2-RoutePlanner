@@ -21,6 +21,9 @@ public static class I18n
     private static string SettingsPath => Path.Combine(
         Path.GetDirectoryName(OS.GetExecutablePath()) ?? "", "mods", "RoutePlanner", "config", "route_planner_settings.json");
 
+    /// <summary>Priority order for route types. Loaded from settings, persisted on change.</summary>
+    public static string[] PriorityOrder { get; set; } = Array.Empty<string>();
+
     public static void Initialize()
     {
         LoadSettings();
@@ -76,21 +79,23 @@ public static class I18n
             if (File.Exists(SettingsPath))
             {
                 var json = File.ReadAllText(SettingsPath);
-                var settings = JsonSerializer.Deserialize<LocaleSettings>(json);
+                var settings = JsonSerializer.Deserialize<ModSettings>(json);
                 if (settings?.Language != null)
                     CurrentLang = settings.Language;
+                if (settings?.PriorityOrder != null)
+                    PriorityOrder = settings.PriorityOrder;
             }
         }
         catch { /* use default */ }
     }
 
-    private static void SaveSettings()
+    public static void SaveSettings()
     {
         try
         {
             var dir = Path.GetDirectoryName(SettingsPath);
             if (dir != null) Directory.CreateDirectory(dir);
-            var settings = new LocaleSettings { Language = CurrentLang };
+            var settings = new ModSettings { Language = CurrentLang, PriorityOrder = PriorityOrder };
             File.WriteAllText(SettingsPath, JsonSerializer.Serialize(settings));
         }
         catch { /* best effort */ }
@@ -102,9 +107,12 @@ public static class I18n
         public Dictionary<string, string> Strings { get; set; } = new();
     }
 
-    private class LocaleSettings
+    private class ModSettings
     {
         [JsonPropertyName("language")]
         public string Language { get; set; } = "zh";
+
+        [JsonPropertyName("priority_order")]
+        public string[]? PriorityOrder { get; set; }
     }
 }

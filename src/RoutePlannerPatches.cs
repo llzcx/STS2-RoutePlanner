@@ -9,7 +9,6 @@ namespace RoutePlanner;
 [HarmonyPatch]
 public static class RoutePlannerPatches
 {
-    // Patch SetMap instead of Initialize, since the map data is available at that point
     [HarmonyPatch(typeof(NMapScreen), "SetMap")]
     [HarmonyPostfix]
     public static void OnSetMap(NMapScreen __instance, ActMap map)
@@ -29,11 +28,12 @@ public static class RoutePlannerPatches
 
         if (runState != null)
         {
-            __instance.GetTree().CreateTimer(0.0).Timeout += () =>
-            {
-                ModLogger.Info("Harmony: deferred OnMapScreenReady firing");
-                RoutePlannerInstance.Instance.OnMapScreenReady(__instance, runState);
-            };
+            // At this point, GenerateMap() has already:
+            // 1. Set State.Map = map          (line 557)
+            // 2. Called RemoveStaleVisitedMapCoords() (line 558)
+            // So CurrentMapPoint is valid for both single-player and multiplayer.
+            // If it happens to be null (edge case), RouteDP falls back to StartingMapPoint.
+            RoutePlannerInstance.Instance.OnMapScreenReady(__instance, runState);
         }
     }
 

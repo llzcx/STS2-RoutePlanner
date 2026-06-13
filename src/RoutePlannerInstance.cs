@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using Godot;
@@ -31,6 +32,34 @@ public class RoutePlannerInstance
     private bool _rewardEnabled = true;
     private int _selectedRouteIndex;
     private Timer? _configPollTimer;
+
+    private static readonly MapPointType[] DefaultPriorityOrder =
+    {
+        MapPointType.Elite, MapPointType.Monster, MapPointType.RestSite,
+        MapPointType.Shop, MapPointType.Treasure, MapPointType.Unknown,
+    };
+
+    private MapPointType[] _priorityOrder = LoadPriorityOrder();
+
+    private static MapPointType[] LoadPriorityOrder()
+    {
+        var saved = I18n.PriorityOrder;
+        if (saved == null || saved.Length == 0) return (MapPointType[])DefaultPriorityOrder.Clone();
+        try
+        {
+            return saved.Select(s => Enum.Parse<MapPointType>(s)).ToArray();
+        }
+        catch
+        {
+            return (MapPointType[])DefaultPriorityOrder.Clone();
+        }
+    }
+
+    private void SavePriorityOrder()
+    {
+        I18n.PriorityOrder = _priorityOrder.Select(p => p.ToString()).ToArray();
+        I18n.SaveSettings();
+    }
 
     public void OnMapScreenReady(NMapScreen mapScreen, RunState runState)
     {
@@ -167,10 +196,19 @@ public class RoutePlannerInstance
         return _selectedRouteIndex switch
         {
             0 => _currentResult.BalancedRoute,
-            1 => _currentResult.HighRewardRoute,
-            2 => _currentResult.SafeRoute,
+            1 => _currentResult.PriorityRoute,
+            2 => _currentResult.HighRewardRoute,
+            3 => _currentResult.SafeRoute,
             _ => _currentResult.BalancedRoute,
         };
+    }
+
+    public void OnPriorityOrderChanged(MapPointType[] order)
+    {
+        _priorityOrder = order;
+        SavePriorityOrder();
+        RecalculatePriorityRoute();
+        _panel?.RefreshRoutes();
     }
 
     public string GetRouteLabel(int index)
@@ -179,8 +217,9 @@ public class RoutePlannerInstance
         var route = index switch
         {
             0 => _currentResult.BalancedRoute,
-            1 => _currentResult.HighRewardRoute,
-            2 => _currentResult.SafeRoute,
+            1 => _currentResult.PriorityRoute,
+            2 => _currentResult.HighRewardRoute,
+            3 => _currentResult.SafeRoute,
             _ => _currentResult.BalancedRoute,
         };
         double danger = 0, reward = 0;
@@ -202,11 +241,14 @@ public class RoutePlannerInstance
         return index switch
         {
             0 => $"{I18n.Tr("自定义")} {I18n.Tr("危险")}{F(danger)} {I18n.Tr("奖励")}{F(reward)} | {counts}",
-            1 => $"{I18n.Tr("高收益")} {I18n.Tr("奖励")}{F(reward)} | {counts}",
-            2 => $"{I18n.Tr("保守")} {I18n.Tr("危险")}{F(danger)} | {counts}",
+            1 => $"{I18n.Tr("定向")} {I18n.Tr("危险")}{F(danger)} {I18n.Tr("奖励")}{F(reward)} | {counts}",
+            2 => $"{I18n.Tr("高收益")} {I18n.Tr("奖励")}{F(reward)} | {counts}",
+            3 => $"{I18n.Tr("保守")} {I18n.Tr("危险")}{F(danger)} | {counts}",
             _ => "",
         };
     }
+
+    public MapPointType[] GetPriorityOrder() => _priorityOrder;
 
     private static string F(double v) => v.ToString("F0");
 
@@ -236,6 +278,8 @@ public class RoutePlannerInstance
         {
             ModLogger.Warn("DP returned null result");
         }
+        if (_currentResult != null)
+            _currentResult.PriorityRoute = RouteDP.PlanPriorityRoute(_actMap, _runState, _priorityOrder, _scoring);
         _panel?.RefreshRoutes();
     }
 
@@ -244,8 +288,14 @@ public class RoutePlannerInstance
         if (_actMap == null || _runState == null) return;
         var (dW, rW) = GetEffectiveWeights();
         _currentResult = RouteDP.PlanRoutes(_actMap, _runState, dW, rW, _scoring);
+        _currentResult.PriorityRoute = RouteDP.PlanPriorityRoute(_actMap, _runState, _priorityOrder, _scoring);
         _panel?.RefreshRoutes();
     }
 
+    private void RecalculatePriorityRoute()
+    {
+        if (_actMap == null || _runState == null || _currentResult == null) return;
+        _currentResult.PriorityRoute = RouteDP.PlanPriorityRoute(_actMap, _runState, _priorityOrder, _scoring);
+    }
 
 }

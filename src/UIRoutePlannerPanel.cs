@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Godot;
+using MegaCrit.Sts2.Core.Map;
 
 namespace RoutePlanner;
 
@@ -30,7 +31,7 @@ public partial class UIRoutePlannerPanel : Control
     private Label? _rewardLabel;
 
     // Weight display
-    private GridContainer? _weightsGrid;
+    private VBoxContainer? _weightsList;
 
     // Route labels
     private Label? _balancedLabel;
@@ -39,12 +40,20 @@ public partial class UIRoutePlannerPanel : Control
     private Button? _balancedBtn;
     private Button? _highRewardBtn;
     private Button? _safeBtn;
+    private Button? _directedBtn;
+    private Label? _directedLabel;
 
     // Action buttons
     private Button? _drawBtn;
     private Button? _clearBtn;
     private Button? _collapseBtn;
     private Button? _langBtn;
+
+    // Tooltip
+    private PanelContainer? _tooltip;
+    private Label? _tooltipTitle;
+    private Label? _tooltipDesc;
+    private Tween? _tooltipTween;
 
     // I18n
     private readonly List<(Control control, string key)> _i18nRegistry = new();
@@ -70,8 +79,9 @@ public partial class UIRoutePlannerPanel : Control
     public void RefreshRoutes()
     {
         if (_balancedLabel != null) _balancedLabel.Text = _instance.GetRouteLabel(0);
-        if (_highRewardLabel != null) _highRewardLabel.Text = _instance.GetRouteLabel(1);
-        if (_safeLabel != null) _safeLabel.Text = _instance.GetRouteLabel(2);
+        if (_directedLabel != null) _directedLabel.Text = _instance.GetRouteLabel(1);
+        if (_highRewardLabel != null) _highRewardLabel.Text = _instance.GetRouteLabel(2);
+        if (_safeLabel != null) _safeLabel.Text = _instance.GetRouteLabel(3);
         UpdateRouteSelection();
         RefreshWeights();
     }
@@ -132,59 +142,122 @@ public partial class UIRoutePlannerPanel : Control
 
     private void RefreshWeights()
     {
-        if (_weightsGrid == null) return;
+        if (_weightsList == null) return;
 
-        while (_weightsGrid.GetChildCount() > 0)
+        while (_weightsList.GetChildCount() > 0)
         {
-            var c = _weightsGrid.GetChild(0);
-            _weightsGrid.RemoveChild(c);
+            var c = _weightsList.GetChild(0);
+            _weightsList.RemoveChild(c);
             c.QueueFree();
         }
 
         var scores = _instance.GetEffectiveTypeScores();
         if (scores.Count == 0) return;
 
-        foreach (var (typeKey, i18nKey, color) in _weightTypes)
+        var priorityOrder = _instance.GetPriorityOrder();
+        var orderedTypes = _weightTypes
+            .OrderBy(wt =>
+            {
+                var pt = Enum.Parse<MapPointType>(wt.typeKey);
+                var idx = Array.IndexOf(priorityOrder, pt);
+                return idx >= 0 ? idx : 99;
+            })
+            .ToList();
+
+        for (int i = 0; i < orderedTypes.Count; i++)
         {
+            var (typeKey, i18nKey, color) = orderedTypes[i];
             if (!scores.TryGetValue(typeKey, out var s)) continue;
 
-            // Card container with floating background
-            var card = new Panel();
+            var row = new HBoxContainer();
+            row.AddThemeConstantOverride("separation", 4);
+
+            // Card content
+            var card = new Panel { Name = $"Card_{typeKey}" };
+            card.SizeFlagsHorizontal = SizeFlags.ExpandFill;
+            card.MouseFilter = MouseFilterEnum.Pass;
+
             var cardStyle = new StyleBoxFlat();
             cardStyle.BgColor = new Color(1f, 1f, 1f, 0.06f);
             cardStyle.SetCornerRadiusAll(6);
             card.AddThemeStyleboxOverride("panel", cardStyle);
-            card.CustomMinimumSize = new Vector2(96, 44);
+            card.CustomMinimumSize = new Vector2(0, 36);
 
-            var vbox = new VBoxContainer();
-            vbox.AddThemeConstantOverride("separation", 2);
-            vbox.SetAnchorsPreset(LayoutPreset.FullRect);
-            vbox.Position = new Vector2(6, 4);
+            var content = new HBoxContainer();
+            content.AddThemeConstantOverride("separation", 10);
+            content.SetAnchorsPreset(LayoutPreset.FullRect);
+            content.OffsetLeft = 6;
+            content.OffsetRight = -6;
 
-            // Node type name
-            var nameLabel = new Label { Text = I18n.Tr(i18nKey), HorizontalAlignment = HorizontalAlignment.Center };
+            var nameLabel = new Label { Text = I18n.Tr(i18nKey), HorizontalAlignment = HorizontalAlignment.Left, VerticalAlignment = VerticalAlignment.Center };
             nameLabel.AddThemeColorOverride("font_color", color);
             nameLabel.AddThemeFontSizeOverride("font_size", 11);
-            vbox.AddChild(nameLabel);
+            nameLabel.CustomMinimumSize = new Vector2(40, 0);
+            content.AddChild(nameLabel);
 
-            // Danger + Reward in one row
-            var row = new HBoxContainer();
-            row.Alignment = BoxContainer.AlignmentMode.Center;
-            row.AddThemeConstantOverride("separation", 8);
-
-            var dLabel = new Label { Text = $"◆{F0(s.danger)}", HorizontalAlignment = HorizontalAlignment.Center };
+            var dLabel = new Label { Text = $"◆{F0(s.danger)}", HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
             dLabel.AddThemeColorOverride("font_color", WarmOrange);
             dLabel.AddThemeFontSizeOverride("font_size", 10);
-            row.AddChild(dLabel);
+            content.AddChild(dLabel);
 
-            var rLabel = new Label { Text = $"★{F0(s.reward)}", HorizontalAlignment = HorizontalAlignment.Center };
+            var rLabel = new Label { Text = $"★{F0(s.reward)}", HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
             rLabel.AddThemeColorOverride("font_color", IceBlue);
             rLabel.AddThemeFontSizeOverride("font_size", 10);
-            row.AddChild(rLabel);
+            content.AddChild(rLabel);
 
-            vbox.AddChild(row);
-            card.AddChild(vbox);
-            _weightsGrid.AddChild(card);
+            card.AddChild(content);
+            row.AddChild(card);
+
+            // Up / Down buttons
+            var canMoveUp = i > 0;
+            var canMoveDown = i < orderedTypes.Count - 1;
+            string capturedKey = typeKey;
+
+            var upBtn = CreateArrowButton("▲", canMoveUp);
+            upBtn.Pressed += () => MovePriority(capturedKey, -1);
+            row.AddChild(upBtn);
+
+            var downBtn = CreateArrowButton("▼", canMoveDown);
+            downBtn.Pressed += () => MovePriority(capturedKey, 1);
+            row.AddChild(downBtn);
+
+            _weightsList.AddChild(row);
+        }
+    }
+
+    private void MovePriority(string typeKey, int direction)
+    {
+        var order = new List<MapPointType>(_instance.GetPriorityOrder());
+        var enumVal = Enum.Parse<MapPointType>(typeKey);
+        int idx = order.IndexOf(enumVal);
+        if (idx < 0) return;
+
+        int newIdx = idx + direction;
+        if (newIdx < 0 || newIdx >= order.Count) return;
+
+        // Play swap animation
+        if (idx < _weightsList!.GetChildCount() && newIdx < _weightsList.GetChildCount())
+        {
+            var rowA = _weightsList.GetChild(idx) as Control;
+            var rowB = _weightsList.GetChild(newIdx) as Control;
+            if (rowA != null && rowB != null)
+            {
+                var tween = CreateTween();
+                tween.SetParallel();
+                // Fade out from center
+                tween.TweenProperty(rowA, "modulate:a", 0.2f, 0.12f);
+                tween.TweenProperty(rowB, "modulate:a", 0.2f, 0.12f);
+                tween.Finished += () =>
+                {
+                    (order[idx], order[newIdx]) = (order[newIdx], order[idx]);
+                    _instance.OnPriorityOrderChanged(order.ToArray());
+                };
+            }
+        }
+        else
+        {
+            (order[idx], order[newIdx]) = (order[newIdx], order[idx]);
+            _instance.OnPriorityOrderChanged(order.ToArray());
         }
     }
 
@@ -193,7 +266,6 @@ public partial class UIRoutePlannerPanel : Control
     private void BuildUI()
     {
         MouseFilter = MouseFilterEnum.Stop;
-        ClipContents = true;
 
         // Panel background — deep space with border
         var bg = new Panel();
@@ -214,17 +286,17 @@ public partial class UIRoutePlannerPanel : Control
         accentLine.SetAnchorsPreset(LayoutPreset.TopWide);
         accentLine.Color = WarmOrange;
         accentLine.CustomMinimumSize = new Vector2(0, 2);
-        accentLine.OffsetLeft = 12;
-        accentLine.OffsetRight = -12;
+        accentLine.OffsetLeft = 8;
+        accentLine.OffsetRight = -8;
         accentLine.OffsetTop = 0;
         AddChild(accentLine);
 
         var container = new VBoxContainer();
         container.SetAnchorsPreset(LayoutPreset.FullRect);
         container.AddThemeConstantOverride("separation", 6);
-        container.OffsetLeft = 12;
-        container.OffsetRight = -12;
-        container.OffsetTop = 10;
+        container.OffsetLeft = 8;
+        container.OffsetRight = -8;
+        container.OffsetTop = 8;
         container.OffsetBottom = -8;
         AddChild(container);
 
@@ -246,10 +318,30 @@ public partial class UIRoutePlannerPanel : Control
         header.AddChild(_collapseBtn);
         container.AddChild(header);
 
-        // --- Content wrapper (collapsible) ---
-        var content = new VBoxContainer { Name = "Content" };
+        // --- Content wrapper (collapsible, scrollable) ---
+        var scroll = new ScrollContainer { Name = "Content" };
+        scroll.HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled;
+        scroll.VerticalScrollMode = ScrollContainer.ScrollMode.ShowAlways;
+        scroll.SizeFlagsHorizontal = SizeFlags.ExpandFill;
+        scroll.SizeFlagsVertical = SizeFlags.ExpandFill;
+
+        // Slim scrollbar
+        var vScroll = scroll.GetVScrollBar();
+        vScroll.CustomMinimumSize = new Vector2(4, 0);
+        var scrollBg = new StyleBoxFlat { BgColor = new Color(0, 0, 0, 0) };
+        vScroll.AddThemeStyleboxOverride("scroll", scrollBg);
+        var scrollGrabber = new StyleBoxFlat { BgColor = new Color(1f, 1f, 1f, 0.15f) };
+        scrollGrabber.SetCornerRadiusAll(2);
+        vScroll.AddThemeStyleboxOverride("grabber", scrollGrabber);
+        var scrollGrabberHover = new StyleBoxFlat { BgColor = new Color(1f, 1f, 1f, 0.25f) };
+        scrollGrabberHover.SetCornerRadiusAll(2);
+        vScroll.AddThemeStyleboxOverride("grabber_highlight", scrollGrabberHover);
+
+        var content = new VBoxContainer();
+        content.SizeFlagsHorizontal = SizeFlags.ExpandFill;
         content.AddThemeConstantOverride("separation", 4);
-        container.AddChild(content);
+        scroll.AddChild(content);
+        container.AddChild(scroll);
 
         // --- Weight sliders ---
         content.AddChild(CreateSectionHeader("导航参数"));
@@ -331,25 +423,27 @@ public partial class UIRoutePlannerPanel : Control
 
         // --- Node type weights ---
         content.AddChild(CreateSectionHeader("星图数据"));
-        _weightsGrid = new GridContainer { Name = "WeightsGrid" };
-        _weightsGrid.Columns = 3;
-        _weightsGrid.AddThemeConstantOverride("h_separation", 6);
-        _weightsGrid.AddThemeConstantOverride("v_separation", 6);
-        content.AddChild(_weightsGrid);
+        _weightsList = new VBoxContainer { Name = "WeightsList" };
+        _weightsList.AddThemeConstantOverride("separation", 4);
+        content.AddChild(_weightsList);
 
         // --- Route list ---
-        content.AddChild(CreateSectionHeader("推荐航线"));
+        content.AddChild(CreateSectionHeader("航线模式选择"));
 
-        _balancedBtn = CreateRouteButton("◉ 自定义", SoftPurple, out _balancedLabel);
+        _balancedBtn = CreateRouteButton("◉ 自定义", "自定义_desc", SoftPurple, out _balancedLabel);
         _balancedBtn.Pressed += () => OnRouteButtonPressed(0);
         content.AddChild(_balancedBtn);
 
-        _highRewardBtn = CreateRouteButton("◆ 高收益", Colors.Gold, out _highRewardLabel);
-        _highRewardBtn.Pressed += () => OnRouteButtonPressed(1);
+        _directedBtn = CreateRouteButton("★ 定向", "定向_desc", WarmOrange, out _directedLabel);
+        _directedBtn.Pressed += () => OnRouteButtonPressed(1);
+        content.AddChild(_directedBtn);
+
+        _highRewardBtn = CreateRouteButton("◆ 高收益", "高收益_desc", Colors.Gold, out _highRewardLabel);
+        _highRewardBtn.Pressed += () => OnRouteButtonPressed(2);
         content.AddChild(_highRewardBtn);
 
-        _safeBtn = CreateRouteButton("● 保守", LimeGreen, out _safeLabel);
-        _safeBtn.Pressed += () => OnRouteButtonPressed(2);
+        _safeBtn = CreateRouteButton("● 保守", "保守_desc", LimeGreen, out _safeLabel);
+        _safeBtn.Pressed += () => OnRouteButtonPressed(3);
         content.AddChild(_safeBtn);
 
         // --- Action buttons ---
@@ -365,13 +459,16 @@ public partial class UIRoutePlannerPanel : Control
         actions.AddChild(_clearBtn);
         content.AddChild(actions);
 
+        // --- Tooltip overlay ---
+        BuildTooltip();
+
         // Set panel position and size
         SetAnchorsPreset(LayoutPreset.TopRight);
         OffsetLeft = -420;
         OffsetRight = 0;
         OffsetTop = 90;
-        OffsetBottom = 560;
-        CustomMinimumSize = new Vector2(400, 440);
+        OffsetBottom = 800;
+        CustomMinimumSize = new Vector2(400, 640);
     }
 
     // --- Event handlers (unchanged) ---
@@ -421,8 +518,9 @@ public partial class UIRoutePlannerPanel : Control
     private void UpdateRouteSelection()
     {
         if (_balancedBtn != null) _balancedBtn.ButtonPressed = _selectedRoute == 0;
-        if (_highRewardBtn != null) _highRewardBtn.ButtonPressed = _selectedRoute == 1;
-        if (_safeBtn != null) _safeBtn.ButtonPressed = _selectedRoute == 2;
+        if (_directedBtn != null) _directedBtn.ButtonPressed = _selectedRoute == 1;
+        if (_highRewardBtn != null) _highRewardBtn.ButtonPressed = _selectedRoute == 2;
+        if (_safeBtn != null) _safeBtn.ButtonPressed = _selectedRoute == 3;
     }
 
     private void OnCollapsePressed()
@@ -449,9 +547,9 @@ public partial class UIRoutePlannerPanel : Control
         }
 
         // Collapsed: 40px height = offset_top(90) + 40 = 130; pass clicks through
-        float targetBottom = _isCollapsed ? 130f : 560f;
+        float targetBottom = _isCollapsed ? 130f : 800f;
         MouseFilter = _isCollapsed ? MouseFilterEnum.Ignore : MouseFilterEnum.Stop;
-        CustomMinimumSize = _isCollapsed ? new Vector2(400, 0) : new Vector2(400, 440);
+        CustomMinimumSize = _isCollapsed ? new Vector2(400, 0) : new Vector2(400, 640);
         var panelTween = CreateTween();
         panelTween.TweenProperty(this, "offset_bottom", targetBottom, 0.22f);
         panelTween.SetEase(Tween.EaseType.InOut);
@@ -544,7 +642,7 @@ public partial class UIRoutePlannerPanel : Control
         return btn;
     }
 
-    private Button CreateRouteButton(string labelKey, Color accentColor, out Label routeLabel)
+    private Button CreateRouteButton(string labelKey, string descKey, Color accentColor, out Label routeLabel)
     {
         var btn = new Button();
         btn.ToggleMode = true;
@@ -554,12 +652,14 @@ public partial class UIRoutePlannerPanel : Control
 
         // Inner HBox for icon + route text
         var row = new HBoxContainer();
+        row.MouseFilter = MouseFilterEnum.Ignore;
         row.AddThemeConstantOverride("separation", 4);
         row.SetAnchorsPreset(LayoutPreset.FullRect);
-        row.OffsetLeft = 4;
-        row.OffsetRight = -4;
+        row.OffsetLeft = 6;
+        row.OffsetRight = -6;
 
         var iconLabel = new Label { Text = I18n.Tr(labelKey) };
+        iconLabel.MouseFilter = MouseFilterEnum.Ignore;
         iconLabel.AddThemeColorOverride("font_color", accentColor);
         iconLabel.AddThemeFontSizeOverride("font_size", 10);
         iconLabel.CustomMinimumSize = new Vector2(50, 0);
@@ -575,6 +675,7 @@ public partial class UIRoutePlannerPanel : Control
             ClipContents = false,
             AutowrapMode = TextServer.AutowrapMode.Word,
         };
+        routeLabel.MouseFilter = MouseFilterEnum.Ignore;
         routeLabel.AddThemeColorOverride("font_color", accentColor);
         routeLabel.AddThemeFontSizeOverride("font_size", 10);
         routeLabel.SizeFlagsHorizontal = SizeFlags.ExpandFill;
@@ -605,6 +706,20 @@ public partial class UIRoutePlannerPanel : Control
         pressedStyle.BorderWidthLeft = 3;
         pressedStyle.BorderColor = accentColor;
         btn.AddThemeStyleboxOverride("pressed", pressedStyle);
+
+        // Tooltip hover
+        string capturedLabelKey = labelKey;
+        btn.MouseEntered += () =>
+        {
+            ModLogger.Info($"Tooltip: MouseEntered on '{capturedLabelKey}'");
+            ShowTooltip(btn, capturedLabelKey, descKey, accentColor);
+        };
+        btn.MouseExited += () =>
+        {
+            ModLogger.Info($"Tooltip: MouseExited on '{capturedLabelKey}'");
+            HideTooltip();
+        };
+        btn.TreeExiting += () => HideTooltip();
 
         return btn;
     }
@@ -677,5 +792,118 @@ public partial class UIRoutePlannerPanel : Control
         hbox.AddChild(rightLine);
 
         return hbox;
+    }
+
+    private static Button CreateArrowButton(string text, bool enabled)
+    {
+        var btn = new Button { Text = text, Disabled = !enabled };
+        btn.CustomMinimumSize = new Vector2(24, 16);
+        btn.AddThemeFontSizeOverride("font_size", 10);
+        btn.MouseFilter = enabled ? MouseFilterEnum.Stop : MouseFilterEnum.Ignore;
+
+        var normalStyle = new StyleBoxFlat { BgColor = new Color(0, 0, 0, 0) };
+        btn.AddThemeStyleboxOverride("normal", normalStyle);
+        btn.AddThemeStyleboxOverride("hover", normalStyle);
+        btn.AddThemeStyleboxOverride("pressed", normalStyle);
+        btn.AddThemeStyleboxOverride("focus", normalStyle);
+        btn.AddThemeStyleboxOverride("disabled", normalStyle);
+
+        btn.AddThemeColorOverride("font_color", enabled ? new Color(1f, 1f, 1f, 0.6f) : new Color(1f, 1f, 1f, 0.15f));
+
+        return btn;
+    }
+
+    // --- Tooltip ---
+
+    private void BuildTooltip()
+    {
+        var tip = new PanelContainer { Name = "RouteTooltip" };
+        tip.MouseFilter = MouseFilterEnum.Ignore;
+        tip.Hide();
+
+        var bgStyle = new StyleBoxFlat();
+        bgStyle.BgColor = new Color(0.055f, 0.067f, 0.118f, 0.96f);
+        bgStyle.SetCornerRadiusAll(8);
+        bgStyle.BorderWidthLeft = 1;
+        bgStyle.BorderWidthRight = 1;
+        bgStyle.BorderWidthTop = 1;
+        bgStyle.BorderWidthBottom = 1;
+        bgStyle.BorderColor = PanelBorder;
+        bgStyle.ContentMarginLeft = 10;
+        bgStyle.ContentMarginRight = 10;
+        bgStyle.ContentMarginTop = 8;
+        bgStyle.ContentMarginBottom = 8;
+        tip.AddThemeStyleboxOverride("panel", bgStyle);
+
+        var content = new VBoxContainer();
+        content.AddThemeConstantOverride("separation", 4);
+        tip.AddChild(content);
+
+        var titleLabel = new Label { Name = "TooltipTitle" };
+        titleLabel.AddThemeFontSizeOverride("font_size", 12);
+        titleLabel.HorizontalAlignment = HorizontalAlignment.Left;
+        content.AddChild(titleLabel);
+        _tooltipTitle = titleLabel;
+
+        var descLabel = new Label { Name = "TooltipDesc" };
+        descLabel.AddThemeFontSizeOverride("font_size", 10);
+        descLabel.AddThemeColorOverride("font_color", new Color(1f, 1f, 1f, 0.7f));
+        descLabel.HorizontalAlignment = HorizontalAlignment.Left;
+        descLabel.AutowrapMode = TextServer.AutowrapMode.Word;
+        descLabel.CustomMinimumSize = new Vector2(200, 0);
+        content.AddChild(descLabel);
+        _tooltipDesc = descLabel;
+
+        tip.CustomMinimumSize = new Vector2(220, 0);
+        AddChild(tip);
+        _tooltip = tip;
+    }
+
+    private void ShowTooltip(Button btn, string titleKey, string descKey, Color accentColor)
+    {
+        if (_tooltip == null || _tooltipTitle == null || _tooltipDesc == null) return;
+
+        _tooltipTitle.Text = I18n.Tr(titleKey);
+        _tooltipTitle.AddThemeColorOverride("font_color", accentColor);
+        _tooltipDesc.Text = I18n.Tr(descKey);
+
+        // Convert btn global coords to panel-local coords
+        var btnGlobal = btn.GlobalPosition;
+        var panelGlobal = ((Control)_tooltip.GetParent()).GlobalPosition;
+        var localPos = btnGlobal - panelGlobal;
+        float tipX = localPos.X - 234; // 220 width + 14 gap
+        float tipY = localPos.Y;
+
+        _tooltip.Position = new Vector2(tipX, tipY);
+        _tooltip.ZIndex = 100;
+
+        ModLogger.Info($"Tooltip: tip=({tipX:F0},{tipY:F0}), btnGlobal=({btnGlobal.X:F0},{btnGlobal.Y:F0}), panelGlobal=({panelGlobal.X:F0},{panelGlobal.Y:F0})");
+
+        _tooltipTween?.Kill();
+        _tooltip.Modulate = new Color(1, 1, 1, 0);
+        _tooltip.Show();
+        _tooltipTween = CreateTween();
+        _tooltipTween.TweenProperty(_tooltip, "modulate:a", 1f, 0.15f);
+        _tooltipTween.SetEase(Tween.EaseType.Out);
+    }
+
+    private void HideTooltip()
+    {
+        if (_tooltip == null || !_tooltip.Visible) return;
+
+        _tooltipTween?.Kill();
+        _tooltipTween = CreateTween();
+        _tooltipTween.TweenProperty(_tooltip, "modulate:a", 0f, 0.1f);
+        _tooltipTween.SetEase(Tween.EaseType.In);
+        _tooltipTween.Finished += () => _tooltip?.Hide();
+    }
+
+    public override void _ExitTree()
+    {
+        _tooltip?.QueueFree();
+        _tooltip = null;
+        _tooltipTitle = null;
+        _tooltipDesc = null;
+        base._ExitTree();
     }
 }

@@ -28,7 +28,7 @@ public static class RouteDP
             return new RoutePlanResult();
         }
 
-        // Determine start point: player's current position, or default to row 1
+        // Determine start point: player's current position, or fallback to Ancient
         var currentPoint = runState.CurrentMapPoint;
         int startRow;
         MapPoint startPoint;
@@ -41,9 +41,10 @@ public static class RouteDP
         }
         else
         {
+            // CurrentMapPoint is null when _visitedMapCoords is empty (e.g. multiplayer client sync delay)
             startPoint = map.StartingMapPoint;
             startRow = 0;
-            ModLogger.Info($"RouteDP: no player position, starting from Ancient — coord=({startPoint.coord.col},{startPoint.coord.row})");
+            ModLogger.Warn("RouteDP: CurrentMapPoint is null, falling back to Ancient");
         }
 
         // If player is at boss or beyond, no routes
@@ -227,6 +228,131 @@ public static class RouteDP
         return path;
     }
 
+    public static List<MapPoint> PlanPriorityRoute(
+        ActMap map, IRunState runState,
+        MapPointType[] priorityOrder,
+        RouteScoringEngine scoring)
+    {
+        if (priorityOrder == null || priorityOrder.Length == 0)
+            return new List<MapPoint>();
+
+        if (map is GoldenPathActMap)
+        {
+            var gpResult = BuildGoldenPathResult(map, runState, scoring, runState.CurrentMapPoint);
+            return gpResult.BalancedRoute;
+        }
+
+        int rows = map.GetRowCount();
+        if (rows <= 2) return new List<MapPoint>();
+
+        // Map each type to its priority slot (0 = most important)
+        var typeSlot = new Dictionary<MapPointType, int>();
+        for (int i = 0; i < priorityOrder.Length; i++)
+            typeSlot[priorityOrder[i]] = i;
+
+        int nSlots = priorityOrder.Length;
+
+        // Lexicographic comparison: compare slot0 first, if equal compare slot1, etc.
+        bool IsBetter(int[] a, int[] b)
+        {
+            for (int i = 0; i < nSlots; i++)
+            {
+                if (a[i] > b[i]) return true;
+                if (a[i] < b[i]) return false;
+            }
+            return false;
+        }
+
+        int[] EmptyVec() => new int[nSlots];
+
+        int[] AddNode(int[] vec, MapPointType type)
+        {
+            var copy = (int[])vec.Clone();
+            if (typeSlot.TryGetValue(type, out int slot))
+                copy[slot]++;
+            return copy;
+        }
+
+        var currentPoint = runState.CurrentMapPoint;
+        int startRow;
+        MapPoint startPoint;
+
+        if (currentPoint != null)
+        {
+            startPoint = currentPoint;
+            startRow = currentPoint.coord.row;
+        }
+        else
+        {
+            startPoint = map.StartingMapPoint;
+            startRow = 0;
+        }
+
+        if (startRow >= map.BossMapPoint.coord.row)
+            return new List<MapPoint>();
+
+        var prev = new Dictionary<MapPoint, MapPoint?>();
+        var counts = new Dictionary<MapPoint, int[]>();
+
+        int initRow = startRow + 1;
+        foreach (var point in map.GetPointsInRow(initRow))
+        {
+            if (!startPoint.Children.Contains(point)) continue;
+            counts[point] = AddNode(EmptyVec(), point.PointType);
+            prev[point] = startPoint;
+        }
+
+        for (int row = initRow + 1; row < rows; row++)
+        {
+            foreach (var point in map.GetPointsInRow(row))
+            {
+                counts[point] = EmptyVec();
+                prev[point] = null;
+
+                foreach (var parent in point.parents)
+                {
+                    if (!counts.ContainsKey(parent)) continue;
+                    var candidate = AddNode(counts[parent], point.PointType);
+                    if (IsBetter(candidate, counts[point]))
+                    {
+                        counts[point] = candidate;
+                        prev[point] = parent;
+                    }
+                }
+            }
+        }
+
+        // Collect boss parents
+        var allBossParents = new List<(MapPoint parent, MapPoint boss)>();
+        var bossParents = map.BossMapPoint.parents;
+        if (bossParents != null)
+            foreach (var p in bossParents)
+                allBossParents.Add((p, map.BossMapPoint));
+        if (map.SecondBossMapPoint != null)
+        {
+            var secondParents = map.SecondBossMapPoint.parents;
+            if (secondParents != null)
+                foreach (var p in secondParents)
+                    allBossParents.Add((p, map.SecondBossMapPoint));
+        }
+
+        MapPoint? bestEnd = null;
+        MapPoint? bestBoss = null;
+        int[] bestCounts = EmptyVec();
+
+        foreach (var (p, boss) in allBossParents)
+        {
+            if (counts.TryGetValue(p, out var c) && IsBetter(c, bestCounts))
+            {
+                bestCounts = c;
+                bestEnd = p;
+                bestBoss = boss;
+            }
+        }
+
+        return BuildFullPath(prev, bestEnd, bestBoss, map);
+    }
+
     private static RoutePlanResult BuildGoldenPathResult(
         ActMap map, IRunState runState, RouteScoringEngine scoring,
         MapPoint? currentPoint)
@@ -249,6 +375,7 @@ public static class RouteDP
             BalancedRoute = path,
             HighRewardRoute = path,
             SafeRoute = path,
+            PriorityRoute = path,
             BalancedScore = totalReward - totalDanger,
             HighRewardScore = totalReward,
             SafeScore = totalDanger,

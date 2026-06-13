@@ -14,7 +14,9 @@
     "激进": "Aggr",
     "极端": "Xtrm",
     "星图数据": "Star Chart",
-    "推荐航线": "Routes",
+    "航线模式选择": "Route Mode",
+    "★ 定向": "★ Target",
+    "定向": "Target",
     "◉ 自定义": "◉ Custom",
     "◆ 高收益": "◆ High Reward",
     "● 保守": "● Safe",
@@ -31,6 +33,11 @@
     "自定义": "Custom",
     "高收益": "High Reward",
     "危险": "Danger",
-    "奖励": "Reward"
+    "奖励": "Reward",
+
+    "自定义_desc": "Computes the optimal route using danger/reward slider weights.\nBest for: fine-tuning your strategy balance.\nConfigure: use the Danger Tolerance / Reward Pursuit sliders above.",
+    "定向_desc": "Finds routes matching the star chart priority order.\nBest for: targeting specific room types (elites, shops, etc.).\nConfigure: use the ▲▼ buttons in the Star Chart section above.",
+    "高收益_desc": "Maximizes reward score regardless of danger.\nBest for: farming resources, relic hunting.\nNote: may include multiple elite fights.",
+    "保守_desc": "Minimizes danger score, avoiding tough fights.\nBest for: low HP, unpolished deck.\nNote: fewer rewards."
   }
 }
