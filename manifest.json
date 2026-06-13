@@ -1,0 +1,11 @@
+{
+  "id": "route_planner",
+  "name": "Route Planner",
+  "author": "Shiang Chen",
+  "description": "Dual-dimension route planning tool for Slay the Spire 2. Analyzes map nodes using dynamic programming with configurable danger/reward weights, and draws recommended paths using the native brush system.",
+  "version": "1.0.0",
+  "has_pck": false,
+  "has_dll": true,
+  "dependencies": [],
+  "affects_gameplay": false
+}
