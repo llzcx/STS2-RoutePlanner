@@ -21,7 +21,6 @@ public static class RouteDP
         }
 
         int rows = map.GetRowCount();
-        ModLogger.Info($"RouteDP: rows={rows}");
 
         if (rows <= 2)
         {
@@ -92,7 +91,6 @@ public static class RouteDP
         for (int i = 0; i < constrainedTypes.Count; i++)
             typeIndex[constrainedTypes[i]] = i;
 
-        ModLogger.Info($"DP count-aware: constrained types={string.Join(",", constrainedTypes)}, boss parents={allBossParents.Count}");
 
         // DP state: per point → per count profile → (score, prev)
         var balByCount = new Dictionary<MapPoint, Dictionary<int, (double score, MapPoint? prev)>>();
@@ -244,9 +242,6 @@ public static class RouteDP
             }
         }
 
-        if (constraints.Any(c => c.Value.Mode != ConstraintMode.None))
-            ModLogger.Info($"DP count-aware: {valid_}/{checked_} profiles valid, {(bestEnd != null ? "OK" : "NO VALID PATH")}");
-
         if (bestEnd == null)
             return (new List<MapPoint>(), 0, false);
 
@@ -385,16 +380,10 @@ public static class RouteDP
                 if (best.end == null)
                 {
                     best = (p, boss, scores[p]);
-                    var future = path.Skip(1).ToList();
-                    var counts = future.GroupBy(n => n.PointType).ToDictionary(g => g.Key, g => g.Count());
-                    ModLogger.Info($"DP: valid path found (score={scores[p]:F1}), types: {string.Join(", ", counts.Select(kv => $"{kv.Key}={kv.Value}"))}");
                     break;
                 }
             }
         }
-
-        if (constraints != null && constraints.Any(c => c.Value.Mode != ConstraintMode.None))
-            ModLogger.Info($"DP constraint filter: {valid_}/{checked_} candidates valid, {(best.end != null ? "OK" : "NO VALID PATH")}");
 
         if (best.end == null)
             return (new List<MapPoint>(), 0, false);
@@ -414,10 +403,7 @@ public static class RouteDP
             if (constraint.Mode == ConstraintMode.None) continue;
             int count = futureNodes.Count(p => p.PointType == type);
             if (!constraint.IsSatisfied(count))
-            {
-                ModLogger.Info($"  Constraint FAIL: {type} count={count} not in [{constraint.LowerLimit},{constraint.UpperLimit}] (mode={constraint.Mode})");
                 return false;
-            }
         }
         return true;
     }
@@ -604,23 +590,17 @@ public static class RouteDP
 
         MapPoint? bestEnd = null, bestBoss = null;
         int[] bestCounts = EmptyVec();
-        int priChecked = 0, priValid = 0;
 
         foreach (var (p, boss) in allBossParents)
         {
             if (!counts.TryGetValue(p, out var c)) continue;
-            priChecked++;
 
             if (PriorityCountsSatisfyConstraints(c, priorityOrder, constraints))
             {
-                priValid++;
                 if (IsBetter(c, bestCounts))
                 { bestCounts = c; bestEnd = p; bestBoss = boss; }
             }
         }
-
-        if (constraints != null && constraints.Any(c2 => c2.Value.Mode != ConstraintMode.None))
-            ModLogger.Info($"DP priority filter: {priValid}/{priChecked} valid, {(bestEnd != null ? "OK" : "NO VALID PATH")}");
 
         if (bestEnd == null)
             return (new List<MapPoint>(), false);
@@ -642,8 +622,6 @@ public static class RouteDP
         var typeIndex = new Dictionary<MapPointType, int>();
         for (int i = 0; i < constrainedTypes.Count; i++)
             typeIndex[constrainedTypes[i]] = i;
-
-        ModLogger.Info($"DP priority count-aware: constrained types={string.Join(",", constrainedTypes)}");
 
         // DP state: per point → per constraint profile → (priority count vector, prev)
         var byCount = new Dictionary<MapPoint, Dictionary<int, (int[] counts, MapPoint? prev)>>();
@@ -696,14 +674,12 @@ public static class RouteDP
         MapPoint? bestEnd = null, bestBoss = null;
         int[] bestVec = EmptyVec();
         int bestKey = 0;
-        int priChecked = 0, priValid = 0;
 
         foreach (var (p, boss) in allBossParents)
         {
             if (!byCount.TryGetValue(p, out var countMap)) continue;
             foreach (var (key, (vec, _)) in countMap)
             {
-                priChecked++;
                 bool valid = true;
                 foreach (var (type, c) in constraints)
                 {
@@ -715,14 +691,11 @@ public static class RouteDP
 
                 if (valid)
                 {
-                    priValid++;
                     if (IsBetter(vec, bestVec))
                     { bestVec = vec; bestEnd = p; bestBoss = boss; bestKey = key; }
                 }
             }
         }
-
-        ModLogger.Info($"DP priority count-aware: {priValid}/{priChecked} profiles valid, {(bestEnd != null ? "OK" : "NO VALID PATH")}");
 
         if (bestEnd == null)
             return (new List<MapPoint>(), false);

@@ -47,11 +47,7 @@ public class RouteScoringEngine
         score = Math.Clamp(score, 0, 200);
 
         if (stateHash != 0)
-        {
-            if (_dangerCache.Count == 0)
-                ModLogger.Info($"ScoringEngine: populating danger cache for {point.PointType} (score={score:F0})");
             _dangerCache[point] = score;
-        }
         return score;
     }
 

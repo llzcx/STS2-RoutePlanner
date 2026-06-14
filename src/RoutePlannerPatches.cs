@@ -25,8 +25,6 @@ public static class RoutePlannerPatches
             .GetField("_runState", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)?
             .GetValue(__instance) as RunState;
 
-        ModLogger.Info($"Harmony: runState via reflection = {(runState != null ? "found" : "NULL")}");
-
         if (runState != null)
         {
             // At this point, GenerateMap() has already:
@@ -150,10 +148,6 @@ public static class RoutePlannerPatches
             mat.SetShaderParameter("s", 1.4f);
             mat.SetShaderParameter("v", 0.8f);
             img.Material = mat;
-        }
-        else
-        {
-            ModLogger.Warn($"BuildSettingsButton: texture={(tex != null ? "ok" : "NULL")} shader={(shader != null ? "ok" : "NULL")}");
         }
         btn.AddChild(img);
 

@@ -3,11 +3,11 @@
   "base_scores": {
     "Monster": {
       "danger": 30,
-      "reward": 20
+      "reward": 15
     },
     "Elite": {
       "danger": 100,
-      "reward": 60
+      "reward": 30
     },
     "RestSite": {
       "danger": 0,

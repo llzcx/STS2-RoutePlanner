@@ -147,7 +147,6 @@ public class RoutePlannerInstance
         // Create UI panel
         _panel = new UIRoutePlannerPanel(this);
         mapScreen.AddChild(_panel);
-        ModLogger.Info("UI panel created and added to map screen");
 
         // Create drawing manager
         _drawingManager = new RouteDrawingManager(mapScreen);
@@ -166,10 +165,7 @@ public class RoutePlannerInstance
     private void OnConfigPoll()
     {
         if (RouteScoringConfig.PollConfigChange())
-        {
-            ModLogger.Info("Config change detected via polling, marking dirty");
             MarkDirty();
-        }
     }
 
     public void OnMapScreenExit()
@@ -246,14 +242,9 @@ public class RoutePlannerInstance
         MarkDirty();
         var route = GetSelectedRoute();
         if (route != null && route.Count > 0)
-        {
-            ModLogger.Info($"Draw clicked — route has {route.Count} nodes");
             _drawingManager?.DrawRoute(route, Colors.White);
-        }
         else
-        {
             ModLogger.Warn("Draw clicked but no valid route");
-        }
     }
 
     public void OnClearClicked()
@@ -432,7 +423,6 @@ public class RoutePlannerInstance
             c.LowerLimits[(int)ConstraintMode.None] = 0;
             c.UpperLimits[(int)ConstraintMode.None] = 0;
         }
-        ModLogger.Info($"Constraint changed: {type} mode={mode} lower={lower} upper={upper}, active={_constraints.Count(kv => kv.Value.Mode != ConstraintMode.None)}");
         SaveConstraints();
         RecalculateDPOnly();
         _panel?.RefreshWeights();
@@ -470,17 +460,9 @@ public class RoutePlannerInstance
             return;
         }
         var (dW, rW) = GetEffectiveWeights();
-        ModLogger.Info($"Recalculating routes — curMapCoord={runState.CurrentMapCoord?.ToString() ?? "NULL"}, danger={dW:F2} reward={rW:F2}");
         _currentResult = RouteDP.PlanRoutes(actMap, runState, dW, rW, _scoring, _constraints);
-        if (_currentResult != null)
-        {
-            ModLogger.Info($"DP result: balanced={_currentResult.BalancedRoute.Count} nodes, " +
-                $"highReward={_currentResult.HighRewardRoute.Count} nodes, safe={_currentResult.SafeRoute.Count} nodes");
-        }
-        else
-        {
+        if (_currentResult == null)
             ModLogger.Warn("DP returned null result");
-        }
         if (_currentResult != null)
         {
             var (priPath, priSatisfied) = RouteDP.PlanPriorityRoute(actMap, runState, _priorityOrder, _scoring, _constraints);
@@ -502,7 +484,6 @@ public class RoutePlannerInstance
             return;
         }
         var (dW, rW) = GetEffectiveWeights();
-        LogActiveConstraints();
         _currentResult = RouteDP.PlanRoutes(actMap, runState, dW, rW, _scoring, _constraints);
         if (_currentResult != null)
         {
@@ -512,14 +493,6 @@ public class RoutePlannerInstance
         }
         _panel?.RefreshRoutes();
         TryAutoDraw();
-    }
-
-    private void LogActiveConstraints()
-    {
-        var active = _constraints.Where(kv => kv.Value.Mode != ConstraintMode.None).ToList();
-        if (active.Count == 0) return;
-        foreach (var (type, c) in active)
-            ModLogger.Info($"  Constraint[{type}]: mode={c.Mode} lower={c.LowerLimit} upper={c.UpperLimit}");
     }
 
     private void RecalculatePriorityRoute()

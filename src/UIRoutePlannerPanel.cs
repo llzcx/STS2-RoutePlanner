@@ -355,7 +355,6 @@ public partial class UIRoutePlannerPanel : Control
                 if (lowerStepper != null) lowerStepper.Visible = nowActive;
 
                 var cur = _instance.GetConstraint(parsedType);
-                ModLogger.Info($"≥ toggle [{parsedType}]: wasActive={wasActive} nowActive={nowActive} curMode={cur.Mode} curLowerLimits=[{string.Join(",", cur.LowerLimits)}] curUpperLimits=[{string.Join(",", cur.UpperLimits)}]");
                 bool upperStillActive = cur.Mode == ConstraintMode.UpperOnly || cur.Mode == ConstraintMode.Both;
                 var newMode = DeriveConstraintMode(nowActive, upperStillActive);
                 int lower = 0;
@@ -364,11 +363,10 @@ public partial class UIRoutePlannerPanel : Control
                     lower = cur.LowerLimits[(int)newMode];
                     if (lower <= 0)
                         for (int m = 1; m <= 3; m++)
-                            if (cur.LowerLimits[m] > 0) { ModLogger.Info($"≥ restored lower from slot[{m}]={cur.LowerLimits[m]}"); lower = cur.LowerLimits[m]; break; }
-                    if (lower <= 0) { ModLogger.Info($"≥ using default lower=1"); lower = 1; }
+                            if (cur.LowerLimits[m] > 0) { lower = cur.LowerLimits[m]; break; }
+                    if (lower <= 0) { lower = 1; }
                 }
                 int upper = upperStillActive ? cur.UpperLimit : 0;
-                ModLogger.Info($"≥ toggle result: lower={lower} upper={upper} newMode={newMode}");
                 _instance.OnConstraintChanged(parsedType, newMode, lower, upper);
             };
             constraintBox.AddChild(lowerToggle);
@@ -426,7 +424,6 @@ public partial class UIRoutePlannerPanel : Control
                 if (upperStepper != null) upperStepper.Visible = nowActive;
 
                 var cur = _instance.GetConstraint(parsedType);
-                ModLogger.Info($"≤ toggle [{parsedType}]: wasActive={wasActive} nowActive={nowActive} curMode={cur.Mode} curLowerLimits=[{string.Join(",", cur.LowerLimits)}] curUpperLimits=[{string.Join(",", cur.UpperLimits)}]");
                 bool lowerStillActive = cur.Mode == ConstraintMode.LowerOnly || cur.Mode == ConstraintMode.Both;
                 var newMode = DeriveConstraintMode(lowerStillActive, nowActive);
                 int lower = lowerStillActive ? cur.LowerLimit : 0;
@@ -436,10 +433,9 @@ public partial class UIRoutePlannerPanel : Control
                     upper = cur.UpperLimits[(int)newMode];
                     if (upper <= 0)
                         for (int m = 1; m <= 3; m++)
-                            if (cur.UpperLimits[m] > 0) { ModLogger.Info($"≤ restored upper from slot[{m}]={cur.UpperLimits[m]}"); upper = cur.UpperLimits[m]; break; }
-                    if (upper <= 0) { ModLogger.Info($"≤ using default upper=3"); upper = 3; }
+                            if (cur.UpperLimits[m] > 0) { upper = cur.UpperLimits[m]; break; }
+                    if (upper <= 0) { upper = 3; }
                 }
-                ModLogger.Info($"≤ toggle result: lower={lower} upper={upper} newMode={newMode}");
                 _instance.OnConstraintChanged(parsedType, newMode, lower, upper);
             };
             constraintBox.AddChild(upperToggle);
@@ -1342,16 +1338,8 @@ public partial class UIRoutePlannerPanel : Control
 
         // Tooltip hover
         string capturedLabelKey = labelKey;
-        btn.MouseEntered += () =>
-        {
-            ModLogger.Info($"Tooltip: MouseEntered on '{capturedLabelKey}'");
-            ShowTooltip(btn, capturedLabelKey, descKey, accentColor);
-        };
-        btn.MouseExited += () =>
-        {
-            ModLogger.Info($"Tooltip: MouseExited on '{capturedLabelKey}'");
-            HideTooltip();
-        };
+        btn.MouseEntered += () => ShowTooltip(btn, capturedLabelKey, descKey, accentColor);
+        btn.MouseExited += () => HideTooltip();
         btn.TreeExiting += () => HideTooltip();
 
         return btn;
@@ -1516,8 +1504,6 @@ public partial class UIRoutePlannerPanel : Control
 
         _tooltip.Position = new Vector2(tipX, tipY);
         _tooltip.ZIndex = 100;
-
-        ModLogger.Info($"Tooltip: tip=({tipX:F0},{tipY:F0}), ctrlGlobal=({ctrlGlobal.X:F0},{ctrlGlobal.Y:F0}), panelGlobal=({panelGlobal.X:F0},{panelGlobal.Y:F0})");
 
         _tooltipTween?.Kill();
         _tooltip.Modulate = new Color(1, 1, 1, 0);
