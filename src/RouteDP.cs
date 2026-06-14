@@ -435,8 +435,8 @@ public static class RouteDP
         }
 
         // Safe route must have at least 30% of balanced reward
-        double safeRewardSum = result.SafeRoute.Sum(p => scoring.CalcRewardScore(p, runState));
-        double balancedRewardSum = result.BalancedRoute.Sum(p => scoring.CalcRewardScore(p, runState));
+        double safeRewardSum = result.SafeRoute.Skip(1).Sum(p => scoring.CalcRewardScore(p, runState));
+        double balancedRewardSum = result.BalancedRoute.Skip(1).Sum(p => scoring.CalcRewardScore(p, runState));
         if (balancedRewardSum > 0 && safeRewardSum < balancedRewardSum * 0.3)
         {
             ModLogger.Info($"Constraint: safe reward ({safeRewardSum:F0}) < 30% of balanced ({balancedRewardSum:F0}), substituting");
@@ -775,8 +775,8 @@ public static class RouteDP
             cur = cur.Children.FirstOrDefault();
         }
 
-        double totalDanger = path.Sum(p => scoring.CalcDangerScore(p, runState));
-        double totalReward = path.Sum(p => scoring.CalcRewardScore(p, runState));
+        double totalDanger = path.Skip(1).Sum(p => scoring.CalcDangerScore(p, runState));
+        double totalReward = path.Skip(1).Sum(p => scoring.CalcRewardScore(p, runState));
 
         return new RoutePlanResult
         {

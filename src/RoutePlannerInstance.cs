@@ -368,8 +368,8 @@ public class RoutePlannerInstance
         double danger = 0, reward = 0;
         if (_runState != null)
         {
-            danger = route.Sum(p => _scoring.CalcDangerScore(p, _runState));
-            reward = route.Sum(p => _scoring.CalcRewardScore(p, _runState));
+            danger = route.Skip(1).Sum(p => _scoring.CalcDangerScore(p, _runState));
+            reward = route.Skip(1).Sum(p => _scoring.CalcRewardScore(p, _runState));
         }
 
         return index switch
