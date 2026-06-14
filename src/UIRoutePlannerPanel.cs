@@ -843,8 +843,8 @@ public partial class UIRoutePlannerPanel : Control
         OffsetLeft = -420;
         OffsetRight = 0;
         OffsetTop = 90;
-        OffsetBottom = 1050;
-        CustomMinimumSize = new Vector2(400, 800);
+        OffsetBottom = 850;
+        CustomMinimumSize = new Vector2(400, 640);
     }
 
     // --- Dimension toggle handlers ---
@@ -1062,11 +1062,14 @@ public partial class UIRoutePlannerPanel : Control
         }
 
         // Collapsed: 40px height = offset_top(90) + 40 = 130
-        float targetBottom = _isCollapsed ? 130f : 1050f;
-        CustomMinimumSize = _isCollapsed ? new Vector2(400, 0) : new Vector2(400, 800);
+        float targetBottom = _isCollapsed ? 130f : 850f;
+        if (_isCollapsed)
+            CustomMinimumSize = new Vector2(400, 0);
         var panelTween = CreateTween();
         panelTween.TweenProperty(this, "offset_bottom", targetBottom, 0.22f);
         panelTween.SetEase(Tween.EaseType.InOut);
+        if (!_isCollapsed)
+            panelTween.Finished += () => CustomMinimumSize = new Vector2(400, 640);
 
         if (_collapseBtn != null)
             _collapseBtn.Text = _isCollapsed ? "⊞" : "⊟";
