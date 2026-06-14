@@ -944,6 +944,7 @@ public partial class UIRoutePlannerPanel : Control
         githubBtn.AddThemeColorOverride("font_color", new Color(1f, 1f, 1f, 0.25f));
         githubBtn.AddThemeColorOverride("font_hover_color", new Color(1f, 0.85f, 0.3f, 0.8f));
         githubBtn.Pressed += () => OS.ShellOpen("https://github.com/llzcx/STS2-RoutePlanner/blob/master/README.md");
+        RegisterButtonI18n(githubBtn, "⭐ 好用就点个 Star ~");
         content.AddChild(githubBtn);
 
         // --- Tooltip overlay ---
