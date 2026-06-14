@@ -178,14 +178,14 @@ public partial class UIRoutePlannerPanel : Control
             var texRect = new TextureRect
             {
                 Texture = LoadNodeIcon(type),
-                CustomMinimumSize = new Vector2(20, 20),
+                CustomMinimumSize = new Vector2(26, 26),
                 ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize,
                 StretchMode = TextureRect.StretchModeEnum.KeepAspectCentered,
             };
             pair.AddChild(texRect);
             var label = new Label { Text = count.ToString(), VerticalAlignment = VerticalAlignment.Center };
-            label.AddThemeFontSizeOverride("font_size", 11);
-            label.AddThemeColorOverride("font_color", new Color(1f, 1f, 1f, 0.8f));
+            label.AddThemeFontSizeOverride("font_size", 13);
+            label.AddThemeColorOverride("font_color", new Color(1f, 1f, 1f, 0.85f));
             pair.AddChild(label);
             iconRow.AddChild(pair);
         }
@@ -1126,7 +1126,7 @@ public partial class UIRoutePlannerPanel : Control
     {
         var btn = new Button();
         btn.ToggleMode = true;
-        btn.CustomMinimumSize = new Vector2(0, 62);
+        btn.CustomMinimumSize = new Vector2(0, 72);
         btn.SizeFlagsHorizontal = SizeFlags.ExpandFill;
         btn.AddThemeFontSizeOverride("font_size", 10);
 
