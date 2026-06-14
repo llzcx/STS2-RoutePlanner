@@ -178,14 +178,14 @@ public partial class UIRoutePlannerPanel : Control
             var texRect = new TextureRect
             {
                 Texture = LoadNodeIcon(type),
-                CustomMinimumSize = new Vector2(14, 14),
+                CustomMinimumSize = new Vector2(20, 20),
                 ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize,
                 StretchMode = TextureRect.StretchModeEnum.KeepAspectCentered,
             };
             pair.AddChild(texRect);
             var label = new Label { Text = count.ToString(), VerticalAlignment = VerticalAlignment.Center };
-            label.AddThemeFontSizeOverride("font_size", 9);
-            label.AddThemeColorOverride("font_color", new Color(1f, 1f, 1f, 0.65f));
+            label.AddThemeFontSizeOverride("font_size", 11);
+            label.AddThemeColorOverride("font_color", new Color(1f, 1f, 1f, 0.8f));
             pair.AddChild(label);
             iconRow.AddChild(pair);
         }
@@ -1126,13 +1126,13 @@ public partial class UIRoutePlannerPanel : Control
     {
         var btn = new Button();
         btn.ToggleMode = true;
-        btn.CustomMinimumSize = new Vector2(0, 54);
+        btn.CustomMinimumSize = new Vector2(0, 62);
         btn.SizeFlagsHorizontal = SizeFlags.ExpandFill;
         btn.AddThemeFontSizeOverride("font_size", 10);
 
         var container = new VBoxContainer();
         container.MouseFilter = MouseFilterEnum.Ignore;
-        container.AddThemeConstantOverride("separation", 1);
+        container.AddThemeConstantOverride("separation", 2);
         container.SetAnchorsPreset(LayoutPreset.FullRect);
         container.OffsetLeft = 6;
         container.OffsetRight = -6;
