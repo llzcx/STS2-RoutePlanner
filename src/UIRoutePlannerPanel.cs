@@ -718,7 +718,7 @@ public partial class UIRoutePlannerPanel : Control
         _highRewardBtn.Pressed += () => OnRouteButtonPressed(2);
         content.AddChild(_highRewardBtn);
 
-        _safeBtn = CreateRouteButton("● 保守", "保守_desc", LimeGreen, out _safeLabel);
+        _safeBtn = CreateRouteButton("● 安全", "保守_desc", LimeGreen, out _safeLabel);
         _safeBtn.Pressed += () => OnRouteButtonPressed(3);
         content.AddChild(_safeBtn);
 

@@ -357,7 +357,7 @@ public class RoutePlannerInstance
                 0 => $"{I18n.Tr("自定义")}  — {I18n.Tr("无符合路线")}",
                 1 => $"{I18n.Tr("定向")}  — {I18n.Tr("无符合路线")}",
                 2 => $"{I18n.Tr("高收益")}  — {I18n.Tr("无符合路线")}",
-                3 => $"{I18n.Tr("保守")}  — {I18n.Tr("无符合路线")}",
+                3 => $"{I18n.Tr("安全")}  — {I18n.Tr("无符合路线")}",
                 _ => "",
             };
         }
@@ -383,7 +383,7 @@ public class RoutePlannerInstance
             0 => $"{I18n.Tr("自定义")} {I18n.Tr("危险")}{F(danger)} {I18n.Tr("奖励")}{F(reward)} | {counts}",
             1 => $"{I18n.Tr("定向")} {I18n.Tr("危险")}{F(danger)} {I18n.Tr("奖励")}{F(reward)} | {counts}",
             2 => $"{I18n.Tr("高收益")} {I18n.Tr("奖励")}{F(reward)} | {counts}",
-            3 => $"{I18n.Tr("保守")} {I18n.Tr("危险")}{F(danger)} | {counts}",
+            3 => $"{I18n.Tr("安全")} {I18n.Tr("危险")}{F(danger)} | {counts}",
             _ => "",
         };
     }
