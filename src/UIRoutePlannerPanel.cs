@@ -285,6 +285,8 @@ public partial class UIRoutePlannerPanel : Control
             var row = new HBoxContainer();
             row.AddThemeConstantOverride("separation", 4);
 
+            var parsedType = Enum.Parse<MapPointType>(typeKey);
+
             // Card content
             var card = new Panel { Name = $"Card_{typeKey}" };
             card.SizeFlagsHorizontal = SizeFlags.ExpandFill;
@@ -302,10 +304,19 @@ public partial class UIRoutePlannerPanel : Control
             content.OffsetLeft = 6;
             content.OffsetRight = -6;
 
+            var icon = new TextureRect
+            {
+                Texture = LoadNodeIcon(parsedType),
+                CustomMinimumSize = new Vector2(20, 20),
+                ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize,
+                StretchMode = TextureRect.StretchModeEnum.KeepAspectCentered,
+            };
+            content.AddChild(icon);
+
             var nameLabel = new Label { Text = I18n.Tr(i18nKey), HorizontalAlignment = HorizontalAlignment.Left, VerticalAlignment = VerticalAlignment.Center };
             nameLabel.AddThemeColorOverride("font_color", color);
             nameLabel.AddThemeFontSizeOverride("font_size", 11);
-            nameLabel.CustomMinimumSize = new Vector2(40, 0);
+            nameLabel.CustomMinimumSize = new Vector2(36, 0);
             content.AddChild(nameLabel);
 
             var dLabel = new Label { Text = $"◆{F0(s.danger)}", HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
@@ -323,7 +334,6 @@ public partial class UIRoutePlannerPanel : Control
             constraintBox.AddThemeConstantOverride("separation", 2);
             content.AddChild(constraintBox);
 
-            var parsedType = Enum.Parse<MapPointType>(typeKey);
             var constraint = _instance.GetConstraint(parsedType);
             string capturedKey = typeKey;
 
