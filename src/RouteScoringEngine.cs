@@ -17,6 +17,16 @@ public class RouteScoringEngine
     private readonly Dictionary<MapPoint, double> _rewardCache = new();
     private int _cachedStateHash;
 
+    // Unknown node odds weights — source-controlled, not user-configurable
+    private static readonly Dictionary<string, double> UnknownOddsWeights = new()
+    {
+        ["Monster"] = 0.10, ["Treasure"] = 0.02, ["Shop"] = 0.03, ["Elite"] = 0.05, ["Event"] = 0.80,
+    };
+
+    // Planisphere unknown-node heal bonus — source-controlled
+    private const double PlanisphereHealAmount = 15.0;
+    private const double PlanisphereRewardPerHpPct = 1.0;
+
     public void InvalidateCache()
     {
         _dangerCache.Clear();
@@ -67,7 +77,7 @@ public class RouteScoringEngine
         else
         {
             score = GetBaseReward(point.PointType);
-            score *= GetRewardMultiplier(player);
+            score *= GetRewardMultiplier(point.PointType.ToString(), player);
             double dummyDanger = 0;
             ApplyEliteRelicCorrections(player, ref dummyDanger, ref score, point, dangerOnly: false);
         }
@@ -98,48 +108,82 @@ public class RouteScoringEngine
         var cfg = RouteScoringConfig.Current.DynamicModifiers.Danger;
         double multiplier = 1.0;
 
-        double hpRatio = (double)player.Creature.CurrentHp / player.Creature.MaxHp;
-        if (hpRatio < cfg.low_hp_threshold)
-            multiplier += cfg.low_hp_scale * (1.0 - hpRatio / cfg.low_hp_threshold);
+        if (cfg.TryGetValue("LowHp", out var lowHp))
+        {
+            double hpRatio = (double)player.Creature.CurrentHp / player.Creature.MaxHp;
+            double threshold = lowHp.Threshold ?? 0.3;
+            if (hpRatio < threshold)
+                multiplier += (lowHp.Multiplier - 1.0) * (1.0 - hpRatio / threshold);
+        }
 
-        int totalCards = player.Deck.Cards.Count();
-        int blockCards = player.Deck.Cards.Count(c =>
-            c.Tags.Contains(CardTag.Defend) || c.GainsBlock);
-        double blockRatio = totalCards > 0 ? (double)blockCards / totalCards : 0;
-        if (blockRatio < cfg.block_card_ratio_threshold)
-            multiplier += cfg.block_card_bonus;
+        if (cfg.TryGetValue("BlockDeficit", out var blockDeficit))
+        {
+            int totalCards = player.Deck.Cards.Count();
+            int blockCards = player.Deck.Cards.Count(c =>
+                c.Tags.Contains(CardTag.Defend) || c.GainsBlock);
+            double blockRatio = totalCards > 0 ? (double)blockCards / totalCards : 0;
+            double threshold = blockDeficit.Threshold ?? 0.15;
+            if (blockRatio < threshold)
+                multiplier += blockDeficit.Multiplier - 1.0;
+        }
 
-        int potionCount = player.Potions.Count();
-        if (potionCount == 0)
-            multiplier += cfg.no_potion_bonus;
+        if (cfg.TryGetValue("NoPotion", out var noPotion))
+        {
+            if (player.Potions.Count() == 0)
+                multiplier += noPotion.Multiplier - 1.0;
+        }
 
-        return Math.Clamp(multiplier, cfg.min_multiplier, cfg.max_multiplier);
+        return multiplier;
     }
 
-    private double GetRewardMultiplier(Player player)
+    private double GetRewardMultiplier(string typeKey, Player player)
     {
         var cfg = RouteScoringConfig.Current.DynamicModifiers.Reward;
         double multiplier = 1.0;
 
-        double goldDeficit = Math.Max(0, (cfg.gold_threshold - player.Gold) / cfg.gold_threshold);
-        multiplier += cfg.gold_deficit_scale * goldDeficit;
-
-        int relicCount = player.Relics.Count;
-        if (relicCount < cfg.relic_count_threshold)
-            multiplier += cfg.relic_deficit_scale * (1.0 - (double)relicCount / cfg.relic_count_threshold);
-
-        double hpRatio = (double)player.Creature.CurrentHp / player.Creature.MaxHp;
-        if (hpRatio > cfg.full_hp_threshold)
-            multiplier -= cfg.full_hp_rest_penalty;
-
-        return Math.Clamp(multiplier, cfg.min_multiplier, cfg.max_multiplier);
+        switch (typeKey)
+        {
+            case "Shop":
+            {
+                if (cfg.TryGetValue("GoldDeficit", out var gold))
+                {
+                    double threshold = gold.Threshold ?? 150;
+                    double deficit = Math.Max(0, (threshold - player.Gold) / threshold);
+                    multiplier += (gold.Multiplier - 1.0) * deficit;
+                }
+                break;
+            }
+            case "Treasure":
+            case "Event":
+            {
+                if (cfg.TryGetValue("RelicDeficit", out var relic))
+                {
+                    double threshold = relic.Threshold ?? 3;
+                    int relicCount = player.Relics.Count;
+                    if (relicCount < threshold)
+                        multiplier += (relic.Multiplier - 1.0) * (1.0 - (double)relicCount / threshold);
+                }
+                break;
+            }
+            case "RestSite":
+            {
+                if (cfg.TryGetValue("FullHp", out var fullHp))
+                {
+                    double threshold = fullHp.Threshold ?? 0.9;
+                    double hpRatio = (double)player.Creature.CurrentHp / player.Creature.MaxHp;
+                    if (hpRatio > threshold)
+                        multiplier += fullHp.Multiplier - 1.0;
+                }
+                break;
+            }
+        }
+        return multiplier;
     }
 
     private (double danger, double reward) ScoreUnknownByHook(IRunState runState)
     {
         var player = runState.Players[0];
         double dangerMult = GetDangerMultiplier(player);
-        double rewardMult = GetRewardMultiplier(player);
         var (eliteDangerDelta, eliteRewardDelta) = GetEliteRelicDeltas(player);
 
         var baseTypes = new HashSet<RoomType>
@@ -148,18 +192,16 @@ public class RouteScoringEngine
         };
         var availableTypes = Hook.ModifyUnknownMapPointRoomTypes(runState, baseTypes);
 
-        var weights = RouteScoringConfig.Current.UnknownHookScoring.BaseOddsWeights;
         double totalWeight = 0, expectedDanger = 0, expectedReward = 0;
 
         foreach (var rt in availableTypes)
         {
             string key = rt.ToString();
-            double weight = weights.TryGetValue(key, out var w) ? w : 0;
-            // Compute fully-corrected score for each possible type
+            double weight = UnknownOddsWeights.TryGetValue(key, out var w) ? w : 0;
             double baseDanger = GetBaseDangerForRoomType(rt);
             double baseReward = GetBaseRewardForRoomType(rt);
             double correctedDanger = baseDanger * dangerMult;
-            double correctedReward = baseReward * rewardMult;
+            double correctedReward = baseReward * GetRewardMultiplier(key, player);
             if (rt == RoomType.Elite)
             {
                 correctedDanger *= 1.0 + eliteDangerDelta;
@@ -176,16 +218,11 @@ public class RouteScoringEngine
             expectedReward /= totalWeight;
         }
 
-        // Supplementary bonuses (Planisphere heal)
-        var bonuses = RouteScoringConfig.Current.UnknownHookScoring.SupplementaryBonuses;
-        if (bonuses.TryGetValue("Planisphere", out var planisphere))
+        // Supplementary bonuses (Planisphere heal) — source-controlled
+        if (player.Relics.Any(r => r.GetType().Name == "Planisphere"))
         {
-            bool hasPlanisphere = player.Relics.Any(r => r.GetType().Name == "Planisphere");
-            if (hasPlanisphere)
-            {
-                double hpPct = (double)player.Creature.CurrentHp / player.Creature.MaxHp;
-                expectedReward += planisphere.HealAmount * planisphere.RewardPerHpPct * (1.0 - hpPct);
-            }
+            double hpPct = (double)player.Creature.CurrentHp / player.Creature.MaxHp;
+            expectedReward += PlanisphereHealAmount * PlanisphereRewardPerHpPct * (1.0 - hpPct);
         }
 
         return (expectedDanger, expectedReward);
@@ -200,23 +237,23 @@ public class RouteScoringEngine
             switch (relic)
             {
                 case SlingOfCourage:
-                    dangerDelta += (cfg.Danger.GetValueOrDefault("SlingOfCourage")?.Multiplier ?? 0.85) - 1.0;
+                    dangerDelta += (cfg.Danger.GetValueOrDefault("SlingOfCourage")?.Multiplier ?? 0.90) - 1.0;
                     break;
                 case BoomingConch:
-                    dangerDelta += (cfg.Danger.GetValueOrDefault("BoomingConch")?.Multiplier ?? 0.88) - 1.0;
+                    dangerDelta += (cfg.Danger.GetValueOrDefault("BoomingConch")?.Multiplier ?? 0.90) - 1.0;
                     break;
                 case WarHammer:
-                    rewardDelta += (cfg.Reward.GetValueOrDefault("WarHammer")?.Multiplier ?? 1.33) - 1.0;
+                    rewardDelta += (cfg.Reward.GetValueOrDefault("WarHammer")?.Multiplier ?? 1.10) - 1.0;
                     break;
                 case WhiteStar:
-                    rewardDelta += (cfg.Reward.GetValueOrDefault("WhiteStar")?.Multiplier ?? 1.42) - 1.0;
+                    rewardDelta += (cfg.Reward.GetValueOrDefault("WhiteStar")?.Multiplier ?? 1.10) - 1.0;
                     break;
                 case BlackStar:
-                    rewardDelta += (cfg.Reward.GetValueOrDefault("BlackStar")?.Multiplier ?? 1.50) - 1.0;
+                    rewardDelta += (cfg.Reward.GetValueOrDefault("BlackStar")?.Multiplier ?? 1.10) - 1.0;
                     break;
                 case SwordOfStone sos:
                     if (sos.ElitesDefeated < 4)
-                        rewardDelta += (cfg.Reward.GetValueOrDefault("SwordOfStone")?.Multiplier ?? 1.25) - 1.0;
+                        rewardDelta += (cfg.Reward.GetValueOrDefault("SwordOfStone")?.Multiplier ?? 1.05) - 1.0;
                     break;
             }
         }
@@ -261,28 +298,24 @@ public class RouteScoringEngine
         foreach (var relic in player.Relics)
         {
             if (relic is FurCoat fc && fc.GetMarkedCoords()?.Contains(point.coord) == true)
-                dangerDelta += (cfg.Danger.GetValueOrDefault("FurCoat")?.Multiplier ?? 0.30) - 1.0;
+                dangerDelta += (cfg.Danger.GetValueOrDefault("FurCoat")?.Multiplier ?? 0.90) - 1.0;
         }
 
         dangerScore *= 1.0 + dangerDelta;
         rewardScore *= 1.0 + rewardDelta;
-
-        dangerScore = Math.Max(dangerScore, cfg.Clamp.min_danger);
-        rewardScore = Math.Min(rewardScore, cfg.Clamp.max_reward);
     }
 
     public Dictionary<string, (double danger, double reward)> GetEffectiveTypeScores(IRunState runState)
     {
         var player = runState.Players[0];
         double dangerMult = GetDangerMultiplier(player);
-        double rewardMult = GetRewardMultiplier(player);
         var (eliteDangerDelta, eliteRewardDelta) = GetEliteRelicDeltas(player);
 
         var result = new Dictionary<string, (double, double)>();
         foreach (var (key, entry) in RouteScoringConfig.Current.BaseScores)
         {
             double d = entry.Danger * dangerMult;
-            double r = entry.Reward * rewardMult;
+            double r = entry.Reward * GetRewardMultiplier(key, player);
             if (key == "Elite")
             {
                 d *= 1.0 + eliteDangerDelta;

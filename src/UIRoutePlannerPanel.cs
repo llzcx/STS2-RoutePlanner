@@ -553,7 +553,7 @@ public partial class UIRoutePlannerPanel : Control
         return lastGood;
     }
 
-    private static string FmtConstraintValue(int v) => v > 0 ? v.ToString() : "";
+    private static string FmtConstraintValue(int v) => v >= 0 ? v.ToString() : "";
 
     private static void ClampAndApply(LineEdit input, int lastGood, Action<int> apply)
     {

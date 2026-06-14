@@ -46,33 +46,19 @@ public class ScoreEntry
 public class DynamicModifiersData
 {
     [JsonPropertyName("danger")]
-    public DangerModifierData Danger { get; set; } = new();
+    public Dictionary<string, DynamicModifierEntry> Danger { get; set; } = new();
 
     [JsonPropertyName("reward")]
-    public RewardModifierData Reward { get; set; } = new();
+    public Dictionary<string, DynamicModifierEntry> Reward { get; set; } = new();
 }
 
-public class DangerModifierData
+public class DynamicModifierEntry
 {
-    public double low_hp_threshold { get; set; } = 0.3;
-    public double low_hp_scale { get; set; } = 0.5;
-    public double block_card_ratio_threshold { get; set; } = 0.15;
-    public double block_card_bonus { get; set; } = 0.3;
-    public double no_potion_bonus { get; set; } = 0.2;
-    public double min_multiplier { get; set; } = 0.5;
-    public double max_multiplier { get; set; } = 2.0;
-}
+    [JsonPropertyName("multiplier")]
+    public double Multiplier { get; set; } = 1.0;
 
-public class RewardModifierData
-{
-    public double gold_threshold { get; set; } = 150;
-    public double gold_deficit_scale { get; set; } = 0.3;
-    public double relic_count_threshold { get; set; } = 3;
-    public double relic_deficit_scale { get; set; } = 0.3;
-    public double full_hp_threshold { get; set; } = 0.9;
-    public double full_hp_rest_penalty { get; set; } = 0.2;
-    public double min_multiplier { get; set; } = 0.5;
-    public double max_multiplier { get; set; } = 2.0;
+    [JsonPropertyName("threshold")]
+    public double? Threshold { get; set; }
 }
 
 public class UnknownHookScoringData
@@ -101,8 +87,6 @@ public class EliteRelicCorrectionsData
     [JsonPropertyName("reward")]
     public Dictionary<string, RelicAdjustment> Reward { get; set; } = new();
 
-    [JsonPropertyName("clamp")]
-    public ClampData Clamp { get; set; } = new();
 }
 
 public class RelicAdjustment
@@ -115,12 +99,6 @@ public class RelicAdjustment
 
     [JsonPropertyName("note")]
     public string? Note { get; set; }
-}
-
-public class ClampData
-{
-    public double min_danger { get; set; } = 5;
-    public double max_reward { get; set; } = 200;
 }
 
 public class WeightPreset
@@ -207,7 +185,21 @@ public static class RouteScoringConfig
                 ["Treasure"] = new() { Danger = 0, Reward = 50 },
                 ["Event"] = new() { Danger = 10, Reward = 45 },
             },
-            DynamicModifiers = new DynamicModifiersData(),
+            DynamicModifiers = new DynamicModifiersData
+            {
+                Danger = new Dictionary<string, DynamicModifierEntry>
+                {
+                    ["LowHp"] = new() { Threshold = 0.3, Multiplier = 1.30 },
+                    ["BlockDeficit"] = new() { Threshold = 0.15, Multiplier = 1.25 },
+                    ["NoPotion"] = new() { Multiplier = 1.15 },
+                },
+                Reward = new Dictionary<string, DynamicModifierEntry>
+                {
+                    ["GoldDeficit"] = new() { Threshold = 150, Multiplier = 0.90 },
+                    ["RelicDeficit"] = new() { Threshold = 3, Multiplier = 1.10 },
+                    ["FullHp"] = new() { Threshold = 0.9, Multiplier = 0.90 },
+                },
+            },
             UnknownHookScoring = new UnknownHookScoringData
             {
                 BaseOddsWeights = new Dictionary<string, double>
@@ -219,25 +211,25 @@ public static class RouteScoringConfig
             {
                 Danger = new Dictionary<string, RelicAdjustment>
                 {
-                    ["SlingOfCourage"] = new() { Multiplier = 0.85 },
-                    ["BoomingConch"] = new() { Multiplier = 0.88 },
-                    ["FurCoat"] = new() { Multiplier = 0.30 },
+                    ["SlingOfCourage"] = new() { Multiplier = 0.90 },
+                    ["BoomingConch"] = new() { Multiplier = 0.90 },
+                    ["FurCoat"] = new() { Multiplier = 0.90 },
                 },
                 Reward = new Dictionary<string, RelicAdjustment>
                 {
-                    ["WarHammer"] = new() { Multiplier = 1.33 },
-                    ["WhiteStar"] = new() { Multiplier = 1.42 },
-                    ["BlackStar"] = new() { Multiplier = 1.50 },
-                    ["SwordOfStone"] = new() { Multiplier = 1.25, Condition = "elites_defeated < 4" },
+                    ["WarHammer"] = new() { Multiplier = 1.10 },
+                    ["WhiteStar"] = new() { Multiplier = 1.10 },
+                    ["BlackStar"] = new() { Multiplier = 1.10 },
+                    ["SwordOfStone"] = new() { Multiplier = 1.05, Condition = "elites_defeated < 4" },
                 },
             },
             WeightPresets = new Dictionary<string, WeightPreset>
             {
-                ["conservative"] = new() { DangerWeight = 0.0, RewardWeight = 0.5 },
-                ["safe_reward"] = new() { DangerWeight = 0.0, RewardWeight = 1.0 },
+                ["conservative"] = new() { DangerWeight = 0.0, RewardWeight = 0.0 },
+                ["safe_reward"] = new() { DangerWeight = 0.0, RewardWeight = 0.5 },
                 ["balanced"] = new() { DangerWeight = 0.5, RewardWeight = 0.5 },
-                ["aggressive"] = new() { DangerWeight = 1.0, RewardWeight = 1.0 },
-                ["extreme"] = new() { DangerWeight = 1.0, RewardWeight = 0.0 },
+                ["aggressive"] = new() { DangerWeight = 1.0, RewardWeight = 0.5 },
+                ["extreme"] = new() { DangerWeight = 1.0, RewardWeight = 1.0 },
             },
             DefaultWeights = new WeightPreset { DangerWeight = 0.0, RewardWeight = 0.5 },
         };

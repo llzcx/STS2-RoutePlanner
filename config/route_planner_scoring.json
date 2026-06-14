@@ -28,78 +28,55 @@
   },
   "dynamic_modifiers": {
     "danger": {
-      "low_hp_threshold": 0.3,
-      "low_hp_scale": 0.5,
-      "block_card_ratio_threshold": 0.15,
-      "block_card_bonus": 0.3,
-      "no_potion_bonus": 0.2,
-      "min_multiplier": 0.5,
-      "max_multiplier": 2
+      "LowHp": { "multiplier": 1.30, "threshold": 0.3 },
+      "BlockDeficit": { "multiplier": 1.25, "threshold": 0.15 },
+      "NoPotion": { "multiplier": 1.15 }
     },
     "reward": {
-      "gold_threshold": 150,
-      "gold_deficit_scale": 0.3,
-      "relic_count_threshold": 3,
-      "relic_deficit_scale": 0.3,
-      "full_hp_threshold": 0.9,
-      "full_hp_rest_penalty": 0.2,
-      "min_multiplier": 0.5,
-      "max_multiplier": 2
+      "GoldDeficit": { "multiplier": 0.90, "threshold": 150 },
+      "RelicDeficit": { "multiplier": 1.10, "threshold": 5 },
+      "FullHp": { "multiplier": 0.80, "threshold": 0.9 }
     }
-  },
-  "unknown_hook_scoring": {
-    "base_odds_weights": {
-      "Monster": 0.1,
-      "Treasure": 0.02,
-      "Shop": 0.03,
-      "Elite": 0.05,
-      "Event": 0.8
-    },
-    "supplementary_bonuses": {}
   },
   "elite_relic_corrections": {
     "danger": {
       "SlingOfCourage": {
-        "multiplier": 0.85,
+        "multiplier": 0.90,
         "condition": null,
         "note": null
       },
       "BoomingConch": {
-        "multiplier": 0.88,
+        "multiplier": 0.90,
         "condition": null,
         "note": null
       },
       "FurCoat": {
-        "multiplier": 0.3,
+        "multiplier": 0.90,
         "condition": null,
         "note": null
       }
     },
     "reward": {
       "WarHammer": {
-        "multiplier": 1.33,
+        "multiplier": 1.10,
         "condition": null,
         "note": null
       },
       "WhiteStar": {
-        "multiplier": 1.42,
+        "multiplier": 1.10,
         "condition": null,
         "note": null
       },
       "BlackStar": {
-        "multiplier": 1.5,
+        "multiplier": 1.10,
         "condition": null,
         "note": null
       },
       "SwordOfStone": {
-        "multiplier": 1.25,
-        "condition": "elites_defeated \u003C 4",
+        "multiplier": 1.05,
+        "condition": "elites_defeated < 4",
         "note": null
       }
-    },
-    "clamp": {
-      "min_danger": 5,
-      "max_reward": 200
     }
   },
   "weight_presets": {
