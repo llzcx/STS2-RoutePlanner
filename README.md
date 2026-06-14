@@ -171,6 +171,11 @@ Enter a map. The panel auto-appears with a pre-computed route. Click a preset:
 <!-- SCORING MODEL -->
 ## 📐 Scoring Model
 
+<div align="center">
+  <img src="doc/setting.png" alt="Base Score Editor" width="70%">
+  <p><em>Base Score Editor — adjust danger/reward values per node type with live formula preview</em></p>
+</div>
+
 ```
 FinalDanger = BaseDanger[type] × DangerMultiplier(state) × EliteRelicCorr
 FinalReward = BaseReward[type] × RewardMultiplier(state) × EliteRelicCorr
