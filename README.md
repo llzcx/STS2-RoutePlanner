@@ -89,6 +89,7 @@ No more "this path feels right." Let the data guide your climb.
 - 📊 **Base Score Editor** — Full GUI to customize danger/reward base values per node type with formula transparency
 - 🔒 **Node Constraints** — Set per-type ≥/≤ limits — target exactly the path you want
 - 🎯 **Priority Mode** — Rank node types by importance; the engine finds the best route matching your priorities
+- 🎨 **Native Map Drawing** — Routes rendered directly on the game map via the built-in drawing API — no overlay hacks. Fully visible to all players in co-op multiplayer.
 - 🌐 **i18n Support** — Full Chinese / English switching, easy to extend
 - 🔥 **Config Hot-Reload** — Edit JSON configs while the game runs; changes apply instantly
 
