@@ -37,10 +37,10 @@
     "危险": "Danger",
     "奖励": "Reward",
 
-    "自定义_desc": "Computes the optimal route using danger/reward slider weights.\nBest for: fine-tuning your strategy balance.\nConfigure: use the Danger Tolerance / Reward Pursuit sliders above.",
-    "定向_desc": "Finds routes matching the star chart priority order.\nBest for: targeting specific room types (elites, shops, etc.).\nConfigure: use the ▲▼ buttons in the Star Chart section above.",
-    "高收益_desc": "Maximizes reward score regardless of danger.\nBest for: farming resources, relic hunting.\nNote: may include multiple elite fights.",
-    "保守_desc": "Minimizes danger score, avoiding tough fights.\nBest for: low HP, unpolished deck.\nNote: fewer rewards.",
+    "自定义_desc": "Computes the optimal route using danger/reward slider weights.\nSubject to Star Chart ≥/≤ constraints.\nBest for: fine-tuning your strategy balance.\nConfigure: use the Danger Tolerance / Reward Pursuit sliders above.",
+    "定向_desc": "Finds routes matching the star chart priority order.\nSubject to Star Chart ≥/≤ constraints.\nBest for: targeting specific room types (elites, shops, etc.).\nConfigure: use the ▲▼ buttons in the Star Chart section above.",
+    "高收益_desc": "Maximizes reward score regardless of danger.\nSubject to Star Chart ≥/≤ constraints.\nBest for: farming resources, relic hunting.\nNote: may include multiple elite fights.",
+    "保守_desc": "Minimizes danger score, avoiding tough fights.\nSubject to Star Chart ≥/≤ constraints.\nBest for: low HP, unpolished deck.\nNote: fewer rewards.",
 
     "约束_无限制": "No Limit",
     "约束_仅上限": "Upper Only",
