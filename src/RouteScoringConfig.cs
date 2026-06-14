@@ -205,8 +205,7 @@ public static class RouteScoringConfig
                 ["RestSite"] = new() { Danger = 0, Reward = 35 },
                 ["Shop"] = new() { Danger = 5, Reward = 45 },
                 ["Treasure"] = new() { Danger = 5, Reward = 50 },
-                ["Unknown"] = new() { Danger = 40, Reward = 40 },
-                ["Unassigned"] = new() { Danger = 0, Reward = 0 },
+                ["Event"] = new() { Danger = 10, Reward = 45 },
             },
             DynamicModifiers = new DynamicModifiersData(),
             UnknownHookScoring = new UnknownHookScoringData

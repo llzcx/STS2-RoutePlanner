@@ -1,118 +1,131 @@
 {
   "_schema": "1.0",
-  "_description": "Route Planner scoring parameters. Save to hot-reload, no restart needed.",
-
   "base_scores": {
-    "Monster":   { "danger": 20, "reward": 10 },
-    "Elite":     { "danger": 100, "reward": 30 },
-    "RestSite":  { "danger":  0, "reward": 45 },
-    "Shop":      { "danger":  0, "reward": 35 },
-    "Treasure":  { "danger":  0, "reward": 45 },
-    "Unknown":   { "danger": 20, "reward": 20 },
-    "Unassigned":{ "danger":  0, "reward":  0 }
+    "Monster": {
+      "danger": 30,
+      "reward": 20
+    },
+    "Elite": {
+      "danger": 100,
+      "reward": 30
+    },
+    "RestSite": {
+      "danger": 0,
+      "reward": 35
+    },
+    "Shop": {
+      "danger": 5,
+      "reward": 45
+    },
+    "Treasure": {
+      "danger": 5,
+      "reward": 50
+    },
+    "Event": {
+      "danger": 10,
+      "reward": 45
+    }
   },
-
   "dynamic_modifiers": {
     "danger": {
       "low_hp_threshold": 0.3,
-      "_desc_low_hp_threshold": "血量低于此比例时触发低血量危险加成",
       "low_hp_scale": 0.5,
-      "_desc_low_hp_scale": "低血量危险加成强度，加到倍率上",
       "block_card_ratio_threshold": 0.15,
-      "_desc_block_card_ratio_threshold": "防御卡占比低于此比例时触发无防御危险加成",
       "block_card_bonus": 0.3,
-      "_desc_block_card_bonus": "无防御时危险倍率额外增加",
       "no_potion_bonus": 0.2,
-      "_desc_no_potion_bonus": "无药水时危险倍率额外增加",
       "min_multiplier": 0.5,
-      "_desc_min_multiplier": "危险倍率下限",
-      "max_multiplier": 2.0,
-      "_desc_max_multiplier": "危险倍率上限"
+      "max_multiplier": 2
     },
     "reward": {
       "gold_threshold": 150,
-      "_desc_gold_threshold": "金币低于此值时触发缺钱奖励加成",
       "gold_deficit_scale": 0.3,
-      "_desc_gold_deficit_scale": "缺钱加成强度，加到倍率上",
       "relic_count_threshold": 3,
-      "_desc_relic_count_threshold": "遗物少于此值时触发缺遗物奖励加成",
       "relic_deficit_scale": 0.3,
-      "_desc_relic_deficit_scale": "缺遗物加成强度，加到倍率上",
       "full_hp_threshold": 0.9,
-      "_desc_full_hp_threshold": "血量高于此比例时触发满血休息惩罚",
       "full_hp_rest_penalty": 0.2,
-      "_desc_full_hp_rest_penalty": "满血时奖励倍率减去此值（降低休息站吸引力）",
       "min_multiplier": 0.5,
-      "_desc_min_multiplier": "奖励倍率下限",
-      "max_multiplier": 2.0,
-      "_desc_max_multiplier": "奖励倍率上限"
+      "max_multiplier": 2
     }
   },
-
   "unknown_hook_scoring": {
-    "_desc": "未知节点用各房间类型的出现概率加权计算期望危险/奖励，不使用 base_scores.Unknown。受 Hook.ModifyUnknownMapPointRoomTypes() 动态修正。",
     "base_odds_weights": {
-      "Monster": 0.10, "Treasure": 0.02, "Shop": 0.03, "Elite": 0.05, "Event": 0.80
+      "Monster": 0.1,
+      "Treasure": 0.02,
+      "Shop": 0.03,
+      "Elite": 0.05,
+      "Event": 0.8
     },
-    "supplementary_bonuses": {
-      "Planisphere": {
-        "desc": "进入未知节点时回复生命。残血时提高未知节点奖励分，引导路线走未知碰运气回血。",
-        "heal_amount": 5,
-        "reward_per_hp_pct": 1.17
-      }
-    }
+    "supplementary_bonuses": {}
   },
-
   "elite_relic_corrections": {
     "danger": {
       "SlingOfCourage": {
-        "desc": "投石索：对精英造成额外伤害。",
-        "multiplier": 0.90
+        "multiplier": 0.85,
+        "condition": null,
+        "note": null
       },
       "BoomingConch": {
-        "desc": "轰鸣海螺：进入精英战斗时自动造成一次伤害。",
-        "multiplier": 0.95
+        "multiplier": 0.88,
+        "condition": null,
+        "note": null
       },
       "FurCoat": {
-        "desc": "毛皮大衣：标记一个精英使其逃离战斗。仅对标记坐标的精英生效。",
-        "multiplier": 0.50
+        "multiplier": 0.3,
+        "condition": null,
+        "note": null
       }
     },
     "reward": {
       "WarHammer": {
-        "desc": "战锤：精英额外掉落。",
-        "multiplier": 1.15
+        "multiplier": 1.33,
+        "condition": null,
+        "note": null
       },
       "WhiteStar": {
-        "desc": "白星：精英额外掉落金币。",
-        "multiplier": 1.15
+        "multiplier": 1.42,
+        "condition": null,
+        "note": null
       },
       "BlackStar": {
-        "desc": "黑星：精英额外掉落遗物。",
-        "multiplier": 1.15
+        "multiplier": 1.5,
+        "condition": null,
+        "note": null
       },
       "SwordOfStone": {
-        "desc": "石中剑：击败精英后提升攻击力，仅前 4 只精英有效。持有且已击败 < 4 精英时。",
-        "multiplier": 1.15,
-        "condition": "elites_defeated < 4"
+        "multiplier": 1.25,
+        "condition": "elites_defeated \u003C 4",
+        "note": null
       }
     },
     "clamp": {
-      "min_danger": 0,
+      "min_danger": 5,
       "max_reward": 200
     }
   },
-
   "weight_presets": {
-    "conservative": { "danger_weight": 0.0, "reward_weight": 0.5 },
-    "safe_reward":  { "danger_weight": 0.0, "reward_weight": 1.0 },
-    "balanced":     { "danger_weight": 0.5, "reward_weight": 0.5 },
-    "aggressive":   { "danger_weight": 1.0, "reward_weight": 1.0 },
-    "extreme":      { "danger_weight": 1.0, "reward_weight": 0.0 }
+    "conservative": {
+      "danger_weight": 0,
+      "reward_weight": 0.5
+    },
+    "safe_reward": {
+      "danger_weight": 0,
+      "reward_weight": 1
+    },
+    "balanced": {
+      "danger_weight": 0.5,
+      "reward_weight": 0.5
+    },
+    "aggressive": {
+      "danger_weight": 1,
+      "reward_weight": 1
+    },
+    "extreme": {
+      "danger_weight": 1,
+      "reward_weight": 0
+    }
   },
-
   "default_weights": {
-    "danger_weight": 0.0,
+    "danger_weight": 0,
     "reward_weight": 0.5
   }
 }

@@ -29,6 +29,8 @@
     "商店": "Shop",
     "宝箱": "Treasure",
     "未知": "Unknown",
+    "事件": "Event",
+
     "普通": "Normal",
     "自定义": "Custom",
     "高收益": "High Reward",
@@ -38,6 +40,29 @@
     "自定义_desc": "Computes the optimal route using danger/reward slider weights.\nBest for: fine-tuning your strategy balance.\nConfigure: use the Danger Tolerance / Reward Pursuit sliders above.",
     "定向_desc": "Finds routes matching the star chart priority order.\nBest for: targeting specific room types (elites, shops, etc.).\nConfigure: use the ▲▼ buttons in the Star Chart section above.",
     "高收益_desc": "Maximizes reward score regardless of danger.\nBest for: farming resources, relic hunting.\nNote: may include multiple elite fights.",
-    "保守_desc": "Minimizes danger score, avoiding tough fights.\nBest for: low HP, unpolished deck.\nNote: fewer rewards."
+    "保守_desc": "Minimizes danger score, avoiding tough fights.\nBest for: low HP, unpolished deck.\nNote: fewer rewards.",
+
+    "约束_无限制": "No Limit",
+    "约束_仅上限": "Upper Only",
+    "约束_仅下限": "Lower Only",
+    "约束_上下限": "Both",
+    "约束模式提示": "Click to cycle constraint mode: None → Upper → Lower → Both",
+    "无符合路线": "No route matches constraints",
+    "自动绘制提示": "Auto-draw route on every config change",
+    "自动绘制中": "Auto-drawing",
+    "自动": "Auto",
+    "手动": "Manual",
+    "基础分数设置": "Base Score Settings",
+    "基础分数说明": "Adjust base danger/reward for each type. Unknown nodes are computed as the weighted average of the types below and cannot be edited directly.",
+    "得分公式": "◆ DangerScore = BaseDanger[type] × DynamicMult(state) × RelicCorr    ★ RewardScore = BaseReward[type] × DynamicMult(state) × RelicCorr",
+    "未知公式标题": "★ Unknown Expected Value (computed, not editable)",
+    "未知公式": "Unknown = Σ( Weight[t] × Base[t] ) / ΣWeight[t],  t∈{Monster,Elite,Treasure,Shop,Event}",
+    "路径总分公式": "✦ PathScore = Σ( RewardW × RewardScore + DangerCoeff × DangerScore ),  DangerCoeff = 2×DangerW − 1",
+    "危险系数说明": "DangerCoeff∈[−1,1]: Safe→−1 avoid  |  Balanced→0 neutral  |  Aggr→+1 seek",
+    "公式变量说明": "Danger/RewardScore = per-node scores    Base = values below    DynamicMult = state-dependent    Weight = unknown_hook_scoring config    RewardW/DangerW = slider weights",
+    "基础分备注": "※ DynamicMult: HP ratio, gold, relic count, potion count, block card ratio  |  RelicCorr: SlingOfCourage, BoomingConch, FurCoat (danger↓); WarHammer, WhiteStar, BlackStar, SwordOfStone (reward↑)",
+    "路线规划设定": "Route Planner Settings",
+    "路线规划说明": "Adjust the initial scores for each node type, affecting all route calculations.",
+    "关闭": "Close"
   }
 }

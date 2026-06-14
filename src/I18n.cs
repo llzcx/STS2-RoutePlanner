@@ -24,6 +24,12 @@ public static class I18n
     /// <summary>Priority order for route types. Loaded from settings, persisted on change.</summary>
     public static string[] PriorityOrder { get; set; } = Array.Empty<string>();
 
+    /// <summary>Node count constraints. Keyed by MapPointType string, persisted on change.</summary>
+    public static Dictionary<string, NodeConstraint>? ConstraintsData { get; set; }
+
+    /// <summary>Auto-draw toggle state. Persisted across restarts.</summary>
+    public static bool AutoDraw { get; set; }
+
     public static void Initialize()
     {
         LoadSettings();
@@ -84,6 +90,9 @@ public static class I18n
                     CurrentLang = settings.Language;
                 if (settings?.PriorityOrder != null)
                     PriorityOrder = settings.PriorityOrder;
+                if (settings?.Constraints != null)
+                    ConstraintsData = settings.Constraints;
+                AutoDraw = settings?.AutoDraw ?? false;
             }
         }
         catch { /* use default */ }
@@ -95,7 +104,13 @@ public static class I18n
         {
             var dir = Path.GetDirectoryName(SettingsPath);
             if (dir != null) Directory.CreateDirectory(dir);
-            var settings = new ModSettings { Language = CurrentLang, PriorityOrder = PriorityOrder };
+            var settings = new ModSettings
+            {
+                Language = CurrentLang,
+                PriorityOrder = PriorityOrder,
+                Constraints = ConstraintsData,
+                AutoDraw = AutoDraw,
+            };
             File.WriteAllText(SettingsPath, JsonSerializer.Serialize(settings));
         }
         catch { /* best effort */ }
@@ -114,5 +129,11 @@ public static class I18n
 
         [JsonPropertyName("priority_order")]
         public string[]? PriorityOrder { get; set; }
+
+        [JsonPropertyName("constraints")]
+        public Dictionary<string, NodeConstraint>? Constraints { get; set; }
+
+        [JsonPropertyName("auto_draw")]
+        public bool AutoDraw { get; set; }
     }
 }

@@ -13,4 +13,8 @@ public class RoutePlanResult
     public double HighRewardScore { get; set; }
     public double SafeScore { get; set; }
     public double PriorityScore { get; set; }
+    public bool BalancedConstraintsSatisfied { get; set; } = true;
+    public bool HighRewardConstraintsSatisfied { get; set; } = true;
+    public bool SafeConstraintsSatisfied { get; set; } = true;
+    public bool PriorityConstraintsSatisfied { get; set; } = true;
 }

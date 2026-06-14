@@ -31,16 +31,25 @@ public class RouteScoringEngine
             return cached;
 
         var player = runState.Players[0];
-        double score = GetBaseDanger(point.PointType);
-        double mult = GetDangerMultiplier(player);
-        score *= mult;
-        ApplyEliteRelicCorrections(player, ref score, ref _dummyReward, point, dangerOnly: true);
+        double score;
+        if (point.PointType == MapPointType.Unknown)
+        {
+            var (danger, _) = ScoreUnknownByHook(runState);
+            score = danger;
+        }
+        else
+        {
+            score = GetBaseDanger(point.PointType);
+            double mult = GetDangerMultiplier(player);
+            score *= mult;
+            ApplyEliteRelicCorrections(player, ref score, ref _dummyReward, point, dangerOnly: true);
+        }
         score = Math.Clamp(score, 0, 200);
 
         if (stateHash != 0)
         {
             if (_dangerCache.Count == 0)
-                ModLogger.Info($"ScoringEngine: populating danger cache for {point.PointType} (mult={mult:F2}, score={score:F0})");
+                ModLogger.Info($"ScoringEngine: populating danger cache for {point.PointType} (score={score:F0})");
             _dangerCache[point] = score;
         }
         return score;
@@ -172,23 +181,28 @@ public class RouteScoringEngine
         return (expectedDanger, expectedReward);
     }
 
+    private static double LookupDanger(string key) =>
+        RouteScoringConfig.Current.BaseScores.TryGetValue(key, out var e) ? e.Danger : 0;
+    private static double LookupReward(string key) =>
+        RouteScoringConfig.Current.BaseScores.TryGetValue(key, out var e) ? e.Reward : 0;
+
     private double GetBaseDangerForRoomType(RoomType rt) => rt switch
     {
-        RoomType.Monster => RouteScoringConfig.Current.BaseScores["Monster"].Danger,
-        RoomType.Elite => RouteScoringConfig.Current.BaseScores["Elite"].Danger,
-        RoomType.Treasure => RouteScoringConfig.Current.BaseScores["Treasure"].Danger,
-        RoomType.Shop => RouteScoringConfig.Current.BaseScores["Shop"].Danger,
-        RoomType.Event => 10, // Events are generally low-risk
+        RoomType.Monster => LookupDanger("Monster"),
+        RoomType.Elite => LookupDanger("Elite"),
+        RoomType.Treasure => LookupDanger("Treasure"),
+        RoomType.Shop => LookupDanger("Shop"),
+        RoomType.Event => LookupDanger("Event"),
         _ => 0,
     };
 
     private double GetBaseRewardForRoomType(RoomType rt) => rt switch
     {
-        RoomType.Monster => RouteScoringConfig.Current.BaseScores["Monster"].Reward,
-        RoomType.Elite => RouteScoringConfig.Current.BaseScores["Elite"].Reward,
-        RoomType.Treasure => RouteScoringConfig.Current.BaseScores["Treasure"].Reward,
-        RoomType.Shop => RouteScoringConfig.Current.BaseScores["Shop"].Reward,
-        RoomType.Event => 35, // Events vary but average decent
+        RoomType.Monster => LookupReward("Monster"),
+        RoomType.Elite => LookupReward("Elite"),
+        RoomType.Treasure => LookupReward("Treasure"),
+        RoomType.Shop => LookupReward("Shop"),
+        RoomType.Event => LookupReward("Event"),
         _ => 0,
     };
 
@@ -248,19 +262,13 @@ public class RouteScoringEngine
         var result = new Dictionary<string, (double, double)>();
         foreach (var (key, entry) in RouteScoringConfig.Current.BaseScores)
         {
-            if (key == "Unassigned") continue;
-            double d, r;
-            if (key == "Unknown")
-            {
-                (d, r) = ScoreUnknownByHook(runState);
-            }
-            else
-            {
-                d = entry.Danger * dangerMult;
-                r = entry.Reward * rewardMult;
-            }
+            double d = entry.Danger * dangerMult;
+            double r = entry.Reward * rewardMult;
             result[key] = (Math.Clamp(d, 0, 200), Math.Clamp(r, 0, 200));
         }
+        // Unknown is computed from the editable base scores, include it in effective display
+        var (unkDanger, unkReward) = ScoreUnknownByHook(runState);
+        result["Unknown"] = (Math.Clamp(unkDanger * dangerMult, 0, 200), Math.Clamp(unkReward * rewardMult, 0, 200));
         return result;
     }
 
