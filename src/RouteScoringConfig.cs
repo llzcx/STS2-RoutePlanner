@@ -200,11 +200,11 @@ public static class RouteScoringConfig
             Schema = SchemaVersion,
             BaseScores = new Dictionary<string, ScoreEntry>
             {
-                ["Monster"] = new() { Danger = 30, Reward = 20 },
-                ["Elite"] = new() { Danger = 70, Reward = 60 },
+                ["Monster"] = new() { Danger = 30, Reward = 15 },
+                ["Elite"] = new() { Danger = 100, Reward = 30 },
                 ["RestSite"] = new() { Danger = 0, Reward = 35 },
-                ["Shop"] = new() { Danger = 5, Reward = 45 },
-                ["Treasure"] = new() { Danger = 5, Reward = 50 },
+                ["Shop"] = new() { Danger = 0, Reward = 45 },
+                ["Treasure"] = new() { Danger = 0, Reward = 50 },
                 ["Event"] = new() { Danger = 10, Reward = 45 },
             },
             DynamicModifiers = new DynamicModifiersData(),

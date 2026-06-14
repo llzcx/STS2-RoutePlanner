@@ -807,7 +807,7 @@ public partial class UIRoutePlannerPanel : Control
         container.AddChild(scroll);
 
         // --- Weight sliders ---
-        content.AddChild(CreateSectionHeader("导航参数"));
+        content.AddChild(CreateSectionHeader("导航参数", "导航参数_desc"));
 
         // Danger slider
         var dangerHeader = new HBoxContainer();
@@ -901,13 +901,13 @@ public partial class UIRoutePlannerPanel : Control
         content.AddChild(presetBox);
 
         // --- Node type weights ---
-        content.AddChild(CreateSectionHeader("星图数据"));
+        content.AddChild(CreateSectionHeader("星图数据", "星图数据_desc"));
         _weightsList = new VBoxContainer { Name = "WeightsList" };
         _weightsList.AddThemeConstantOverride("separation", 4);
         content.AddChild(_weightsList);
 
         // --- Route list ---
-        content.AddChild(CreateSectionHeader("航线模式选择"));
+        content.AddChild(CreateSectionHeader("航线模式选择", "航线模式选择_desc"));
 
         _balancedBtn = CreateRouteButton("◉ 自定义", "自定义_desc", SoftPurple, out _balancedLabel, out _balancedIcons);
         _balancedBtn.Pressed += () => OnRouteButtonPressed(0);
@@ -1399,7 +1399,7 @@ public partial class UIRoutePlannerPanel : Control
         return btn;
     }
 
-    private Control CreateSectionHeader(string i18nKey)
+    private Control CreateSectionHeader(string i18nKey, string? descKey = null)
     {
         var hbox = new HBoxContainer();
         hbox.AddThemeConstantOverride("separation", 8);
@@ -1423,6 +1423,13 @@ public partial class UIRoutePlannerPanel : Control
         rightLine.SizeFlagsHorizontal = SizeFlags.ExpandFill;
         rightLine.SizeFlagsVertical = SizeFlags.ShrinkCenter;
         hbox.AddChild(rightLine);
+
+        if (descKey != null)
+        {
+            var capturedKey = descKey;
+            hbox.MouseEntered += () => ShowTooltip(hbox, i18nKey, capturedKey, Gold);
+            hbox.MouseExited += () => HideTooltip();
+        }
 
         return hbox;
     }
@@ -1492,7 +1499,7 @@ public partial class UIRoutePlannerPanel : Control
         _tooltip = tip;
     }
 
-    private void ShowTooltip(Button btn, string titleKey, string descKey, Color accentColor)
+    private void ShowTooltip(Control ctrl, string titleKey, string descKey, Color accentColor)
     {
         if (_tooltip == null || _tooltipTitle == null || _tooltipDesc == null) return;
 
@@ -1500,17 +1507,17 @@ public partial class UIRoutePlannerPanel : Control
         _tooltipTitle.AddThemeColorOverride("font_color", accentColor);
         _tooltipDesc.Text = I18n.Tr(descKey);
 
-        // Convert btn global coords to panel-local coords
-        var btnGlobal = btn.GlobalPosition;
+        // Convert ctrl global coords to panel-local coords
+        var ctrlGlobal = ctrl.GlobalPosition;
         var panelGlobal = ((Control)_tooltip.GetParent()).GlobalPosition;
-        var localPos = btnGlobal - panelGlobal;
+        var localPos = ctrlGlobal - panelGlobal;
         float tipX = localPos.X - 234; // 220 width + 14 gap
         float tipY = localPos.Y;
 
         _tooltip.Position = new Vector2(tipX, tipY);
         _tooltip.ZIndex = 100;
 
-        ModLogger.Info($"Tooltip: tip=({tipX:F0},{tipY:F0}), btnGlobal=({btnGlobal.X:F0},{btnGlobal.Y:F0}), panelGlobal=({panelGlobal.X:F0},{panelGlobal.Y:F0})");
+        ModLogger.Info($"Tooltip: tip=({tipX:F0},{tipY:F0}), ctrlGlobal=({ctrlGlobal.X:F0},{ctrlGlobal.Y:F0}), panelGlobal=({panelGlobal.X:F0},{panelGlobal.Y:F0})");
 
         _tooltipTween?.Kill();
         _tooltip.Modulate = new Color(1, 1, 1, 0);

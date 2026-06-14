@@ -247,48 +247,22 @@ public partial class BaseScoreEditorPopup : Control
 
         contentArea.AddChild(scroll);
 
-        // Close button at the bottom — styled to match panel border
-        var closeBtn = new Button { Text = I18n.Tr("关闭") };
-        closeBtn.CustomMinimumSize = new Vector2(0, 40);
-        closeBtn.AddThemeFontSizeOverride("font_size", 18);
-        closeBtn.AddThemeColorOverride("font_color", new Color(0.91f, 0.864f, 0.746f, 1f)); // cream
+        // Bottom button row
+        var buttonRow = new HBoxContainer();
+        buttonRow.AddThemeConstantOverride("separation", 12);
+        buttonRow.Alignment = BoxContainer.AlignmentMode.Center;
+
+        // Reset to default button
+        var resetBtn = CreateBottomButton(I18n.Tr("重置默认"), new Color(Gold.R, Gold.G, Gold.B, 0.9f));
+        resetBtn.Pressed += ResetToDefault;
+        buttonRow.AddChild(resetBtn);
+
+        // Close button
+        var closeBtn = CreateBottomButton(I18n.Tr("关闭"), new Color(0.91f, 0.864f, 0.746f, 1f)); // cream
         closeBtn.Pressed += Close;
+        buttonRow.AddChild(closeBtn);
 
-        var btnNormal = new StyleBoxFlat
-        {
-            BgColor = new Color(0.15f, 0.18f, 0.25f, 0.6f),
-            BorderWidthLeft = 0,
-            BorderWidthRight = 0,
-            BorderWidthTop = 0,
-            BorderWidthBottom = 0,
-        };
-        btnNormal.SetCornerRadiusAll(6);
-        closeBtn.AddThemeStyleboxOverride("normal", btnNormal);
-
-        var btnHover = new StyleBoxFlat
-        {
-            BgColor = new Color(0.22f, 0.26f, 0.35f, 0.8f),
-            BorderWidthLeft = 0,
-            BorderWidthRight = 0,
-            BorderWidthTop = 0,
-            BorderWidthBottom = 0,
-        };
-        btnHover.SetCornerRadiusAll(6);
-        closeBtn.AddThemeStyleboxOverride("hover", btnHover);
-
-        var btnPressed = new StyleBoxFlat
-        {
-            BgColor = new Color(0.1f, 0.12f, 0.18f, 0.9f),
-            BorderWidthLeft = 0,
-            BorderWidthRight = 0,
-            BorderWidthTop = 0,
-            BorderWidthBottom = 0,
-        };
-        btnPressed.SetCornerRadiusAll(6);
-        closeBtn.AddThemeStyleboxOverride("pressed", btnPressed);
-
-        closeBtn.AddThemeStyleboxOverride("focus", btnHover);
-        contentArea.AddChild(closeBtn);
+        contentArea.AddChild(buttonRow);
 
         // Position the panel centered
         var viewportSize = GetViewportRect().Size;
@@ -474,6 +448,84 @@ public partial class BaseScoreEditorPopup : Control
             return popup;
         }
         return null;
+    }
+
+    private static Button CreateBottomButton(string text, Color textColor)
+    {
+        var btn = new Button { Text = text };
+        btn.CustomMinimumSize = new Vector2(160, 40);
+        btn.AddThemeFontSizeOverride("font_size", 18);
+        btn.AddThemeColorOverride("font_color", textColor);
+
+        var btnNormal = new StyleBoxFlat
+        {
+            BgColor = new Color(0.15f, 0.18f, 0.25f, 0.6f),
+            BorderWidthLeft = 0,
+            BorderWidthRight = 0,
+            BorderWidthTop = 0,
+            BorderWidthBottom = 0,
+        };
+        btnNormal.SetCornerRadiusAll(6);
+        btn.AddThemeStyleboxOverride("normal", btnNormal);
+
+        var btnHover = new StyleBoxFlat
+        {
+            BgColor = new Color(0.22f, 0.26f, 0.35f, 0.8f),
+            BorderWidthLeft = 0,
+            BorderWidthRight = 0,
+            BorderWidthTop = 0,
+            BorderWidthBottom = 0,
+        };
+        btnHover.SetCornerRadiusAll(6);
+        btn.AddThemeStyleboxOverride("hover", btnHover);
+
+        var btnPressed = new StyleBoxFlat
+        {
+            BgColor = new Color(0.1f, 0.12f, 0.18f, 0.9f),
+            BorderWidthLeft = 0,
+            BorderWidthRight = 0,
+            BorderWidthTop = 0,
+            BorderWidthBottom = 0,
+        };
+        btnPressed.SetCornerRadiusAll(6);
+        btn.AddThemeStyleboxOverride("pressed", btnPressed);
+        btn.AddThemeStyleboxOverride("focus", btnHover);
+
+        return btn;
+    }
+
+    private void ResetToDefault()
+    {
+        var defaults = new Dictionary<string, (double Danger, double Reward)>
+        {
+            ["Monster"]   = (30, 15),
+            ["Elite"]     = (100, 30),
+            ["RestSite"]  = (0,   35),
+            ["Shop"]      = (0,   45),
+            ["Treasure"]  = (0,   50),
+            ["Event"]     = (10, 45),
+        };
+
+        var config = RouteScoringConfig.Current;
+        foreach (var (key, (danger, reward)) in defaults)
+        {
+            if (!config.BaseScores.TryGetValue(key, out var entry))
+            {
+                entry = new ScoreEntry();
+                config.BaseScores[key] = entry;
+            }
+            entry.Danger = danger;
+            entry.Reward = reward;
+
+            if (_dangerEdits.TryGetValue(key, out var de))
+                de.Text = ((int)danger).ToString();
+            if (_rewardEdits.TryGetValue(key, out var re))
+                re.Text = ((int)reward).ToString();
+        }
+
+        SaveConfig();
+        UpdateUnknownDisplay();
+        RoutePlannerInstance.Instance?.MarkDirty();
     }
 
     private void Close()

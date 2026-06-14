@@ -72,6 +72,10 @@
     "基础分备注": "※ DynamicMult: HP ratio, gold, relic count, potion count, block card ratio  |  RelicCorr: SlingOfCourage, BoomingConch, FurCoat (danger↓); WarHammer, WhiteStar, BlackStar, SwordOfStone (reward↑)",
     "路线规划设定": "Route Planner Settings",
     "路线规划说明": "Adjust the initial scores for each node type, affecting all route calculations.",
+    "导航参数_desc": "Adjust danger tolerance and reward pursuit weights to steer route planning. Quick-switch via preset buttons.",
+    "星图数据_desc": "Set node type priority order (▲▼) and count constraints (≥min / ≤max). Routes are filtered and ranked accordingly.",
+    "航线模式选择_desc": "Choose optimization strategy: Custom uses slider weights, Target follows priority order, High Reward maximizes rewards, Safe minimizes danger.",
+    "重置默认": "Reset Defaults",
     "关闭": "Close"
   }
 }
