@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.Json.Serialization;
 using Godot;
 using MegaCrit.Sts2.Core.Map;
 using MegaCrit.Sts2.Core.Nodes.Screens.Map;
@@ -24,12 +25,14 @@ public class NodeConstraint
     public int[] LowerLimits { get; set; } = new int[4];
     public int[] UpperLimits { get; set; } = new int[4];
 
-    // Convenience accessors for current Mode — with setters for JSON backward compat
+    // Convenience accessors for current Mode.
+    [JsonIgnore]
     public int LowerLimit
     {
         get => LowerLimits[(int)Mode];
         set => LowerLimits[(int)Mode] = value;
     }
+    [JsonIgnore]
     public int UpperLimit
     {
         get => UpperLimits[(int)Mode];

@@ -156,6 +156,9 @@ public partial class UIRoutePlannerPanel : Control
         UpdateDrawButtonState();
     }
 
+    private static readonly MapPointType[] _iconOrder =
+        { MapPointType.Elite, MapPointType.Monster, MapPointType.RestSite, MapPointType.Shop, MapPointType.Treasure, MapPointType.Unknown };
+
     private void RefreshRouteIcons(HBoxContainer? iconRow, int routeIndex)
     {
         if (iconRow == null) return;
@@ -167,12 +170,10 @@ public partial class UIRoutePlannerPanel : Control
         }
 
         var counts = _instance.GetRouteCounts(routeIndex);
-        if (counts.Count == 0) return;
 
-        var order = new[] { MapPointType.Elite, MapPointType.Monster, MapPointType.RestSite, MapPointType.Shop, MapPointType.Treasure, MapPointType.Unknown };
-        foreach (var type in order)
+        foreach (var type in _iconOrder)
         {
-            if (!counts.TryGetValue(type, out int count)) continue;
+            int count = counts.GetValueOrDefault(type, 0);
             var pair = new HBoxContainer();
             pair.AddThemeConstantOverride("separation", 2);
             var texRect = new TextureRect
@@ -185,7 +186,10 @@ public partial class UIRoutePlannerPanel : Control
             pair.AddChild(texRect);
             var label = new Label { Text = count.ToString(), VerticalAlignment = VerticalAlignment.Center };
             label.AddThemeFontSizeOverride("font_size", 13);
-            label.AddThemeColorOverride("font_color", new Color(1f, 1f, 1f, 0.85f));
+            if (count == 0)
+                label.AddThemeColorOverride("font_color", new Color(1f, 1f, 1f, 0.25f));
+            else
+                label.AddThemeColorOverride("font_color", new Color(1f, 1f, 1f, 0.85f));
             pair.AddChild(label);
             iconRow.AddChild(pair);
         }
@@ -339,10 +343,20 @@ public partial class UIRoutePlannerPanel : Control
                 lowerInput.Visible = nowActive;
 
                 var cur = _instance.GetConstraint(parsedType);
+                ModLogger.Info($"≥ toggle [{parsedType}]: wasActive={wasActive} nowActive={nowActive} curMode={cur.Mode} curLowerLimits=[{string.Join(",", cur.LowerLimits)}] curUpperLimits=[{string.Join(",", cur.UpperLimits)}]");
                 bool upperStillActive = cur.Mode == ConstraintMode.UpperOnly || cur.Mode == ConstraintMode.Both;
-                int lower = nowActive ? (cur.LowerLimit > 0 ? cur.LowerLimit : 1) : 0;
-                int upper = upperStillActive ? cur.UpperLimit : 0;
                 var newMode = DeriveConstraintMode(nowActive, upperStillActive);
+                int lower = 0;
+                if (nowActive)
+                {
+                    lower = cur.LowerLimits[(int)newMode];
+                    if (lower <= 0)
+                        for (int m = 1; m <= 3; m++)
+                            if (cur.LowerLimits[m] > 0) { ModLogger.Info($"≥ restored lower from slot[{m}]={cur.LowerLimits[m]}"); lower = cur.LowerLimits[m]; break; }
+                    if (lower <= 0) { ModLogger.Info($"≥ using default lower=1"); lower = 1; }
+                }
+                int upper = upperStillActive ? cur.UpperLimit : 0;
+                ModLogger.Info($"≥ toggle result: lower={lower} upper={upper} newMode={newMode}");
                 _instance.OnConstraintChanged(parsedType, newMode, lower, upper);
             };
             constraintBox.AddChild(lowerToggle);
@@ -373,10 +387,20 @@ public partial class UIRoutePlannerPanel : Control
                 upperInput.Visible = nowActive;
 
                 var cur = _instance.GetConstraint(parsedType);
+                ModLogger.Info($"≤ toggle [{parsedType}]: wasActive={wasActive} nowActive={nowActive} curMode={cur.Mode} curLowerLimits=[{string.Join(",", cur.LowerLimits)}] curUpperLimits=[{string.Join(",", cur.UpperLimits)}]");
                 bool lowerStillActive = cur.Mode == ConstraintMode.LowerOnly || cur.Mode == ConstraintMode.Both;
-                int lower = lowerStillActive ? cur.LowerLimit : 0;
-                int upper = nowActive ? (cur.UpperLimit > 0 ? cur.UpperLimit : 3) : 0;
                 var newMode = DeriveConstraintMode(lowerStillActive, nowActive);
+                int lower = lowerStillActive ? cur.LowerLimit : 0;
+                int upper = 0;
+                if (nowActive)
+                {
+                    upper = cur.UpperLimits[(int)newMode];
+                    if (upper <= 0)
+                        for (int m = 1; m <= 3; m++)
+                            if (cur.UpperLimits[m] > 0) { ModLogger.Info($"≤ restored upper from slot[{m}]={cur.UpperLimits[m]}"); upper = cur.UpperLimits[m]; break; }
+                    if (upper <= 0) { ModLogger.Info($"≤ using default upper=3"); upper = 3; }
+                }
+                ModLogger.Info($"≤ toggle result: lower={lower} upper={upper} newMode={newMode}");
                 _instance.OnConstraintChanged(parsedType, newMode, lower, upper);
             };
             constraintBox.AddChild(upperToggle);
