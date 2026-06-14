@@ -513,7 +513,7 @@ public static class RouteDP
         else
         {
             startPoint = map.StartingMapPoint;
-            startRow = 0;
+            startRow = map.StartingMapPoint.coord.row;
         }
 
         if (startRow >= map.BossMapPoint.coord.row)
@@ -572,18 +572,24 @@ public static class RouteDP
         {
             foreach (var point in map.GetPointsInRow(row))
             {
-                counts[point] = EmptyVec();
-                prev[point] = null;
+                MapPoint? bestParent = null;
+                int[]? bestVec = null;
 
                 foreach (var parent in point.parents)
                 {
-                    if (!counts.ContainsKey(parent)) continue;
-                    var candidate = AddNode(counts[parent], point.PointType);
-                    if (IsBetter(candidate, counts[point]))
+                    if (!counts.TryGetValue(parent, out var parentCounts)) continue;
+                    var candidate = AddNode(parentCounts, point.PointType);
+                    if (bestVec == null || IsBetter(candidate, bestVec))
                     {
-                        counts[point] = candidate;
-                        prev[point] = parent;
+                        bestVec = candidate;
+                        bestParent = parent;
                     }
+                }
+
+                if (bestVec != null)
+                {
+                    counts[point] = bestVec;
+                    prev[point] = bestParent;
                 }
             }
         }
