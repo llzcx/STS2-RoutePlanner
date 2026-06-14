@@ -53,7 +53,7 @@ public partial class BaseScoreEditorPopup : Control
         AddChild(backdrop);
 
         float panelW = 880f;
-        float panelH = 780f;
+        float panelH = 950f;
         var borderPanel = new Panel();
         borderPanel.CustomMinimumSize = new Vector2(panelW, panelH);
         borderPanel.MouseFilter = MouseFilterEnum.Ignore;
@@ -94,6 +94,7 @@ public partial class BaseScoreEditorPopup : Control
         var subtitle = new Label { Text = I18n.Tr("基础分数说明") };
         subtitle.AddThemeColorOverride("font_color", new Color(1f, 1f, 1f, 0.45f));
         subtitle.AddThemeFontSizeOverride("font_size", 15);
+        subtitle.AutowrapMode = TextServer.AutowrapMode.WordSmart;
         contentArea.AddChild(subtitle);
 
         // Formula — danger / reward for normal nodes
@@ -353,7 +354,7 @@ public partial class BaseScoreEditorPopup : Control
     private void UpdateUnknownDisplay()
     {
         var config = RouteScoringConfig.Current;
-        var weights = config.UnknownHookScoring.BaseOddsWeights;
+        var weights = RouteScoringEngine.UnknownOddsWeights;
         double totalWeight = 0, dangerSum = 0, rewardSum = 0;
 
         foreach (var (typeKey, _, _) in _types)

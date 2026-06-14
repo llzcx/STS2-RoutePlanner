@@ -18,7 +18,7 @@ public class RouteScoringEngine
     private int _cachedStateHash;
 
     // Unknown node odds weights — source-controlled, not user-configurable
-    private static readonly Dictionary<string, double> UnknownOddsWeights = new()
+    public static readonly Dictionary<string, double> UnknownOddsWeights = new()
     {
         ["Monster"] = 0.10, ["Treasure"] = 0.02, ["Shop"] = 0.03, ["Elite"] = 0.05, ["Event"] = 0.80,
     };
