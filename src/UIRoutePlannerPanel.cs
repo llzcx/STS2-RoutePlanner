@@ -967,7 +967,7 @@ public partial class UIRoutePlannerPanel : Control
         OffsetLeft = -420;
         OffsetRight = 0;
         OffsetTop = 90;
-        OffsetBottom = 850;
+        OffsetBottom = 870;
         CustomMinimumSize = new Vector2(400, 640);
     }
 
