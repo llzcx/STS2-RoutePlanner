@@ -681,7 +681,7 @@ public partial class UIRoutePlannerPanel : Control
         // --- Content wrapper (collapsible, scrollable) ---
         var scroll = new ScrollContainer { Name = "Content" };
         scroll.HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled;
-        scroll.VerticalScrollMode = ScrollContainer.ScrollMode.ShowAlways;
+        scroll.VerticalScrollMode = ScrollContainer.ScrollMode.ShowNever;
         scroll.SizeFlagsHorizontal = SizeFlags.ExpandFill;
         scroll.SizeFlagsVertical = SizeFlags.ExpandFill;
 
