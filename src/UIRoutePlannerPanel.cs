@@ -20,9 +20,9 @@ public partial class UIRoutePlannerPanel : Control
     private static readonly Color LimeGreen = new(0.29f, 0.87f, 0.50f);
     private static readonly Color SoftPurple = new(0.655f, 0.545f, 0.980f);
 
-    // Dimension checkboxes
-    private CheckBox? _dangerCheckBox;
-    private CheckBox? _rewardCheckBox;
+    // Dimension toggles (replaced plain CheckBox with styled pill buttons)
+    private Button? _dangerToggleBtn;
+    private Button? _rewardToggleBtn;
 
     // Sliders
     private HSlider? _dangerSlider;
@@ -608,11 +608,10 @@ public partial class UIRoutePlannerPanel : Control
 
         // Danger slider
         var dangerHeader = new HBoxContainer();
-        dangerHeader.AddThemeConstantOverride("separation", 2);
-        _dangerCheckBox = new CheckBox();
-        _dangerCheckBox.ButtonPressed = true;
-        _dangerCheckBox.Toggled += OnDangerCheckToggled;
-        dangerHeader.AddChild(_dangerCheckBox);
+        dangerHeader.AddThemeConstantOverride("separation", 6);
+        _dangerToggleBtn = CreateDimensionToggle("◆", WarmOrange, active: true);
+        _dangerToggleBtn.Pressed += OnDangerTogglePressed;
+        dangerHeader.AddChild(_dangerToggleBtn);
         dangerHeader.AddChild(CreateLocalizedLabel("危险容限", 12, WarmOrange));
         content.AddChild(dangerHeader);
 
@@ -633,11 +632,10 @@ public partial class UIRoutePlannerPanel : Control
 
         // Reward slider
         var rewardHeader = new HBoxContainer();
-        rewardHeader.AddThemeConstantOverride("separation", 2);
-        _rewardCheckBox = new CheckBox();
-        _rewardCheckBox.ButtonPressed = true;
-        _rewardCheckBox.Toggled += OnRewardCheckToggled;
-        rewardHeader.AddChild(_rewardCheckBox);
+        rewardHeader.AddThemeConstantOverride("separation", 6);
+        _rewardToggleBtn = CreateDimensionToggle("★", IceBlue, active: true);
+        _rewardToggleBtn.Pressed += OnRewardTogglePressed;
+        rewardHeader.AddChild(_rewardToggleBtn);
         rewardHeader.AddChild(CreateLocalizedLabel("收益渴求", 12, IceBlue));
         content.AddChild(rewardHeader);
 
@@ -736,34 +734,40 @@ public partial class UIRoutePlannerPanel : Control
         CustomMinimumSize = new Vector2(400, 640);
     }
 
-    // --- Event handlers (unchanged) ---
+    // --- Dimension toggle handlers ---
 
-    private void OnDangerCheckToggled(bool on)
+    private void OnDangerTogglePressed()
     {
-        if (!on && (_rewardCheckBox == null || !_rewardCheckBox.ButtonPressed))
+        bool nowActive = !_dangerToggleBtn!.HasMeta("active") || !(bool)_dangerToggleBtn.GetMeta("active");
+        // Prevent both from being unchecked
+        if (!nowActive && (_rewardToggleBtn == null || !IsToggleActive(_rewardToggleBtn)))
         {
-            _dangerCheckBox!.ButtonPressed = true;
-            return;
+            return; // refuse: at least one must be active
         }
-        NotifyDimensionChanged();
+        UpdateToggleActive(_dangerToggleBtn, WarmOrange, nowActive);
+        _instance.OnDimensionChanged(nowActive, IsToggleActive(_rewardToggleBtn));
     }
 
-    private void OnRewardCheckToggled(bool on)
+    private void OnRewardTogglePressed()
     {
-        if (!on && (_dangerCheckBox == null || !_dangerCheckBox.ButtonPressed))
+        bool nowActive = !_rewardToggleBtn!.HasMeta("active") || !(bool)_rewardToggleBtn.GetMeta("active");
+        if (!nowActive && (_dangerToggleBtn == null || !IsToggleActive(_dangerToggleBtn)))
         {
-            _rewardCheckBox!.ButtonPressed = true;
-            return;
+            return; // refuse: at least one must be active
         }
-        NotifyDimensionChanged();
+        UpdateToggleActive(_rewardToggleBtn, IceBlue, nowActive);
+        _instance.OnDimensionChanged(IsToggleActive(_dangerToggleBtn), nowActive);
     }
 
     private void NotifyDimensionChanged()
     {
         _instance.OnDimensionChanged(
-            _dangerCheckBox?.ButtonPressed ?? true,
-            _rewardCheckBox?.ButtonPressed ?? false);
+            IsToggleActive(_dangerToggleBtn),
+            IsToggleActive(_rewardToggleBtn));
     }
+
+    private static bool IsToggleActive(Button? btn) =>
+        btn != null && btn.HasMeta("active") && (bool)btn.GetMeta("active");
 
     private void UpdateSliderLabels()
     {
@@ -843,6 +847,80 @@ public partial class UIRoutePlannerPanel : Control
         btn.AddThemeStyleboxOverride("pressed", flatStyle);
         btn.AddThemeStyleboxOverride("focus", flatStyle);
         return btn;
+    }
+
+    /// <summary>Creates a pill-shaped toggle with icon for dimension enable/disable.</summary>
+    private static Button CreateDimensionToggle(string icon, Color accentColor, bool active)
+    {
+        var btn = new Button
+        {
+            Text = icon,
+            CustomMinimumSize = new Vector2(42, 22),
+        };
+        btn.AddThemeFontSizeOverride("font_size", 12);
+        btn.SetMeta("active", active);
+
+        // Hover — subtle highlight
+        var hoverStyle = new StyleBoxFlat
+        {
+            BgColor = new Color(accentColor.R, accentColor.G, accentColor.B, 0.12f),
+            BorderWidthLeft = 1, BorderWidthRight = 1,
+            BorderWidthTop = 1, BorderWidthBottom = 1,
+            BorderColor = new Color(accentColor.R, accentColor.G, accentColor.B, 0.3f),
+        };
+        hoverStyle.SetCornerRadiusAll(11);
+        btn.AddThemeStyleboxOverride("hover", hoverStyle);
+
+        // Pressed — deeper
+        var pressedStyle = new StyleBoxFlat
+        {
+            BgColor = new Color(accentColor.R, accentColor.G, accentColor.B, 0.08f),
+            BorderWidthLeft = 1, BorderWidthRight = 1,
+            BorderWidthTop = 1, BorderWidthBottom = 1,
+            BorderColor = new Color(accentColor.R, accentColor.G, accentColor.B, 0.2f),
+        };
+        pressedStyle.SetCornerRadiusAll(11);
+        btn.AddThemeStyleboxOverride("pressed", pressedStyle);
+        btn.AddThemeStyleboxOverride("focus", pressedStyle);
+
+        ApplyToggleStyle(btn, accentColor, active);
+        return btn;
+    }
+
+    private static void ApplyToggleStyle(Button btn, Color accentColor, bool active)
+    {
+        if (active)
+        {
+            btn.AddThemeColorOverride("font_color", Colors.White);
+            var activeBg = new StyleBoxFlat
+            {
+                BgColor = new Color(accentColor.R, accentColor.G, accentColor.B, 0.55f),
+                BorderWidthLeft = 1, BorderWidthRight = 1,
+                BorderWidthTop = 1, BorderWidthBottom = 1,
+                BorderColor = new Color(accentColor.R, accentColor.G, accentColor.B, 0.6f),
+            };
+            activeBg.SetCornerRadiusAll(11);
+            btn.AddThemeStyleboxOverride("normal", activeBg);
+        }
+        else
+        {
+            btn.AddThemeColorOverride("font_color", new Color(accentColor.R, accentColor.G, accentColor.B, 0.35f));
+            var inactiveBg = new StyleBoxFlat
+            {
+                BgColor = new Color(0, 0, 0, 0),
+                BorderWidthLeft = 1, BorderWidthRight = 1,
+                BorderWidthTop = 1, BorderWidthBottom = 1,
+                BorderColor = new Color(accentColor.R, accentColor.G, accentColor.B, 0.18f),
+            };
+            inactiveBg.SetCornerRadiusAll(11);
+            btn.AddThemeStyleboxOverride("normal", inactiveBg);
+        }
+    }
+
+    private static void UpdateToggleActive(Button btn, Color accentColor, bool active)
+    {
+        btn.SetMeta("active", active);
+        ApplyToggleStyle(btn, accentColor, active);
     }
 
     private void OnCollapsePressed()
