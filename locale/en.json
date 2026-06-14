@@ -46,6 +46,12 @@
     "约束_仅上限": "Upper Only",
     "约束_仅下限": "Lower Only",
     "约束_上下限": "Both",
+    "保守_desc": "Avoid all danger with no reward pursuit.\nBest for: critically low HP, survival priority.",
+    "求稳_desc": "Avoid danger while moderately pursuing rewards.\nBest for: recovering and accumulating resources.",
+    "均衡_desc": "Balance danger and reward equally.\nBest for: the default choice in most runs.",
+    "激进_desc": "Seek danger with moderate reward pursuit.\nBest for: strong deck, hunting elite loot.",
+    "极端_desc": "Maximize danger seeking and reward pursuit.\nBest for: high-score runs, all-elite path.\nNote: may be extremely difficult to survive.",
+
     "约束_至少": "Min — at least this many of the type in route",
     "约束_最多": "Max — at most this many of the type in route",
     "约束模式提示": "Click to cycle constraint mode: None → Upper → Lower → Both",

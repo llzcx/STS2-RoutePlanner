@@ -657,29 +657,42 @@ public partial class UIRoutePlannerPanel : Control
         // Preset buttons — segmented control style
         var presetBox = new HBoxContainer();
         presetBox.AddThemeConstantOverride("separation", 0);
+
+        void AddPresetTooltip(Button btn, string titleKey, string descKey)
+        {
+            btn.MouseEntered += () => ShowTooltip(btn, titleKey, descKey, Gold);
+            btn.MouseExited += HideTooltip;
+            btn.TreeExiting += HideTooltip;
+        }
+
         var consBtn = CreatePresetButton("保守");
         consBtn.Pressed += () => _instance.OnPresetSelected("conservative");
         RegisterButtonI18n(consBtn, "保守");
+        AddPresetTooltip(consBtn, "保守", "保守_desc");
         _presetButtons["conservative"] = consBtn;
         presetBox.AddChild(consBtn);
         var safeBtn = CreatePresetButton("求稳");
         safeBtn.Pressed += () => _instance.OnPresetSelected("safe_reward");
         RegisterButtonI18n(safeBtn, "求稳");
+        AddPresetTooltip(safeBtn, "求稳", "求稳_desc");
         _presetButtons["safe_reward"] = safeBtn;
         presetBox.AddChild(safeBtn);
         var balBtn = CreatePresetButton("均衡");
         balBtn.Pressed += () => _instance.OnPresetSelected("balanced");
         RegisterButtonI18n(balBtn, "均衡");
+        AddPresetTooltip(balBtn, "均衡", "均衡_desc");
         _presetButtons["balanced"] = balBtn;
         presetBox.AddChild(balBtn);
         var aggBtn = CreatePresetButton("激进");
         aggBtn.Pressed += () => _instance.OnPresetSelected("aggressive");
         RegisterButtonI18n(aggBtn, "激进");
+        AddPresetTooltip(aggBtn, "激进", "激进_desc");
         _presetButtons["aggressive"] = aggBtn;
         presetBox.AddChild(aggBtn);
         var extBtn = CreatePresetButton("极端");
         extBtn.Pressed += () => _instance.OnPresetSelected("extreme");
         RegisterButtonI18n(extBtn, "极端");
+        AddPresetTooltip(extBtn, "极端", "极端_desc");
         _presetButtons["extreme"] = extBtn;
         presetBox.AddChild(extBtn);
         content.AddChild(presetBox);
