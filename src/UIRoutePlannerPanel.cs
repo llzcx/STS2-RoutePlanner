@@ -934,6 +934,17 @@ public partial class UIRoutePlannerPanel : Control
         actions.AddChild(_clearBtn);
         content.AddChild(actions);
 
+        // --- GitHub link ---
+        var githubBtn = new Button { Text = "↗ GitHub" };
+        githubBtn.CustomMinimumSize = new Vector2(0, 20);
+        githubBtn.AddThemeFontSizeOverride("font_size", 10);
+        githubBtn.AddThemeColorOverride("font_color", new Color(1f, 1f, 1f, 0.30f));
+        githubBtn.Flat = true;
+        githubBtn.Alignment = HorizontalAlignment.Center;
+        githubBtn.MouseDefaultCursorShape = CursorShape.PointingHand;
+        githubBtn.Pressed += () => OS.ShellOpen("https://github.com/llzcx/STS2-RoutePlanner/blob/master/README.md");
+        content.AddChild(githubBtn);
+
         // --- Tooltip overlay ---
         BuildTooltip();
 
