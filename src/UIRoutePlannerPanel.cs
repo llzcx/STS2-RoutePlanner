@@ -178,13 +178,13 @@ public partial class UIRoutePlannerPanel : Control
             var texRect = new TextureRect
             {
                 Texture = LoadNodeIcon(type),
-                CustomMinimumSize = new Vector2(22, 22),
+                CustomMinimumSize = new Vector2(26, 26),
                 ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize,
                 StretchMode = TextureRect.StretchModeEnum.KeepAspectCentered,
             };
             pair.AddChild(texRect);
             var label = new Label { Text = count.ToString(), VerticalAlignment = VerticalAlignment.Center };
-            label.AddThemeFontSizeOverride("font_size", 12);
+            label.AddThemeFontSizeOverride("font_size", 13);
             label.AddThemeColorOverride("font_color", new Color(1f, 1f, 1f, 0.85f));
             pair.AddChild(label);
             iconRow.AddChild(pair);
@@ -809,8 +809,8 @@ public partial class UIRoutePlannerPanel : Control
         OffsetLeft = -420;
         OffsetRight = 0;
         OffsetTop = 90;
-        OffsetBottom = 800;
-        CustomMinimumSize = new Vector2(400, 640);
+        OffsetBottom = 1050;
+        CustomMinimumSize = new Vector2(400, 800);
     }
 
     // --- Dimension toggle handlers ---
@@ -1028,8 +1028,8 @@ public partial class UIRoutePlannerPanel : Control
         }
 
         // Collapsed: 40px height = offset_top(90) + 40 = 130
-        float targetBottom = _isCollapsed ? 130f : 800f;
-        CustomMinimumSize = _isCollapsed ? new Vector2(400, 0) : new Vector2(400, 640);
+        float targetBottom = _isCollapsed ? 130f : 1050f;
+        CustomMinimumSize = _isCollapsed ? new Vector2(400, 0) : new Vector2(400, 800);
         var panelTween = CreateTween();
         panelTween.TweenProperty(this, "offset_bottom", targetBottom, 0.22f);
         panelTween.SetEase(Tween.EaseType.InOut);
@@ -1132,7 +1132,7 @@ public partial class UIRoutePlannerPanel : Control
 
         var container = new VBoxContainer();
         container.MouseFilter = MouseFilterEnum.Ignore;
-        container.AddThemeConstantOverride("separation", 0);
+        container.AddThemeConstantOverride("separation", 2);
         container.SetAnchorsPreset(LayoutPreset.FullRect);
         container.OffsetLeft = 6;
         container.OffsetRight = -6;
