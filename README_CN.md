@@ -7,6 +7,13 @@
 
 </div>
 
+<!-- PROJECT POSTER -->
+<div align="center">
+  <img src="doc/mod.png" alt="路线导航仪截图" width="80%">
+</div>
+
+---
+
 <!-- PROJECT LOGO -->
 <br />
 <div align="center">

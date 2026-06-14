@@ -7,6 +7,13 @@ English | [简体中文](README_CN.md)
 
 </div>
 
+<!-- PROJECT POSTER -->
+<div align="center">
+  <img src="doc/mod.png" alt="Route Planner Screenshot" width="80%">
+</div>
+
+---
+
 <!-- PROJECT LOGO -->
 <br />
 <div align="center">
