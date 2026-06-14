@@ -119,6 +119,14 @@ public partial class BaseScoreEditorPopup : Control
         unkFormula.CustomMinimumSize = new Vector2(0, 20);
         contentArea.AddChild(unkFormula);
 
+        // Note: Unknown uses corrected scores
+        var unkNote = new Label { Text = I18n.Tr("未知公式备注") };
+        unkNote.AddThemeColorOverride("font_color", new Color(1f, 1f, 1f, 0.2f));
+        unkNote.AddThemeFontSizeOverride("font_size", 12);
+        unkNote.AutowrapMode = TextServer.AutowrapMode.WordSmart;
+        unkNote.CustomMinimumSize = new Vector2(0, 16);
+        contentArea.AddChild(unkNote);
+
         // Formula — path total score (how danger and reward combine)
         var pathFormula = new Label { Text = I18n.Tr("路径总分公式") };
         pathFormula.AddThemeColorOverride("font_color", Gold);

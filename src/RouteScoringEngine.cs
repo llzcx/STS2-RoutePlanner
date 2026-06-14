@@ -141,6 +141,11 @@ public class RouteScoringEngine
 
     private (double danger, double reward) ScoreUnknownByHook(IRunState runState)
     {
+        var player = runState.Players[0];
+        double dangerMult = GetDangerMultiplier(player);
+        double rewardMult = GetRewardMultiplier(player);
+        var (eliteDangerDelta, eliteRewardDelta) = GetEliteRelicDeltas(player);
+
         var baseTypes = new HashSet<RoomType>
         {
             RoomType.Monster, RoomType.Elite, RoomType.Treasure, RoomType.Shop, RoomType.Event
@@ -154,8 +159,18 @@ public class RouteScoringEngine
         {
             string key = rt.ToString();
             double weight = weights.TryGetValue(key, out var w) ? w : 0;
-            expectedDanger += weight * GetBaseDangerForRoomType(rt);
-            expectedReward += weight * GetBaseRewardForRoomType(rt);
+            // Compute fully-corrected score for each possible type
+            double baseDanger = GetBaseDangerForRoomType(rt);
+            double baseReward = GetBaseRewardForRoomType(rt);
+            double correctedDanger = baseDanger * dangerMult;
+            double correctedReward = baseReward * rewardMult;
+            if (rt == RoomType.Elite)
+            {
+                correctedDanger *= 1.0 + eliteDangerDelta;
+                correctedReward *= 1.0 + eliteRewardDelta;
+            }
+            expectedDanger += weight * correctedDanger;
+            expectedReward += weight * correctedReward;
             totalWeight += weight;
         }
 
@@ -169,7 +184,6 @@ public class RouteScoringEngine
         var bonuses = RouteScoringConfig.Current.UnknownHookScoring.SupplementaryBonuses;
         if (bonuses.TryGetValue("Planisphere", out var planisphere))
         {
-            var player = runState.Players[0];
             bool hasPlanisphere = player.Relics.Any(r => r.GetType().Name == "Planisphere");
             if (hasPlanisphere)
             {
@@ -179,6 +193,38 @@ public class RouteScoringEngine
         }
 
         return (expectedDanger, expectedReward);
+    }
+
+    private (double dangerDelta, double rewardDelta) GetEliteRelicDeltas(Player player)
+    {
+        var cfg = RouteScoringConfig.Current.EliteRelicCorrections;
+        double dangerDelta = 0, rewardDelta = 0;
+        foreach (var relic in player.Relics)
+        {
+            switch (relic)
+            {
+                case SlingOfCourage:
+                    dangerDelta += (cfg.Danger.GetValueOrDefault("SlingOfCourage")?.Multiplier ?? 0.85) - 1.0;
+                    break;
+                case BoomingConch:
+                    dangerDelta += (cfg.Danger.GetValueOrDefault("BoomingConch")?.Multiplier ?? 0.88) - 1.0;
+                    break;
+                case WarHammer:
+                    rewardDelta += (cfg.Reward.GetValueOrDefault("WarHammer")?.Multiplier ?? 1.33) - 1.0;
+                    break;
+                case WhiteStar:
+                    rewardDelta += (cfg.Reward.GetValueOrDefault("WhiteStar")?.Multiplier ?? 1.42) - 1.0;
+                    break;
+                case BlackStar:
+                    rewardDelta += (cfg.Reward.GetValueOrDefault("BlackStar")?.Multiplier ?? 1.50) - 1.0;
+                    break;
+                case SwordOfStone sos:
+                    if (sos.ElitesDefeated < 4)
+                        rewardDelta += (cfg.Reward.GetValueOrDefault("SwordOfStone")?.Multiplier ?? 1.25) - 1.0;
+                    break;
+            }
+        }
+        return (dangerDelta, rewardDelta);
     }
 
     private static double LookupDanger(string key) =>
@@ -210,40 +256,16 @@ public class RouteScoringEngine
         ref double dangerScore, ref double rewardScore, MapPoint point,
         bool dangerOnly = false)
     {
+        if (point.PointType != MapPointType.Elite) return;
+
         var cfg = RouteScoringConfig.Current.EliteRelicCorrections;
-        bool isElite = point.PointType == MapPointType.Elite;
+        var (dangerDelta, rewardDelta) = GetEliteRelicDeltas(player);
 
-        double dangerDelta = 0;
-        double rewardDelta = 0;
-
+        // FurCoat: coord-specific check (not in GetEliteRelicDeltas — cannot predict for Unknown)
         foreach (var relic in player.Relics)
         {
-            switch (relic)
-            {
-                case SlingOfCourage:
-                    if (isElite) dangerDelta += (cfg.Danger.GetValueOrDefault("SlingOfCourage")?.Multiplier ?? 0.85) - 1.0;
-                    break;
-                case BoomingConch:
-                    if (isElite) dangerDelta += (cfg.Danger.GetValueOrDefault("BoomingConch")?.Multiplier ?? 0.88) - 1.0;
-                    break;
-                case FurCoat fc:
-                    if (isElite && fc.GetMarkedCoords()?.Contains(point.coord) == true)
-                        dangerDelta += (cfg.Danger.GetValueOrDefault("FurCoat")?.Multiplier ?? 0.30) - 1.0;
-                    break;
-                case WarHammer:
-                    if (isElite) rewardDelta += (cfg.Reward.GetValueOrDefault("WarHammer")?.Multiplier ?? 1.33) - 1.0;
-                    break;
-                case WhiteStar:
-                    if (isElite) rewardDelta += (cfg.Reward.GetValueOrDefault("WhiteStar")?.Multiplier ?? 1.42) - 1.0;
-                    break;
-                case BlackStar:
-                    if (isElite) rewardDelta += (cfg.Reward.GetValueOrDefault("BlackStar")?.Multiplier ?? 1.50) - 1.0;
-                    break;
-                case SwordOfStone sos:
-                    if (isElite && sos.ElitesDefeated < 4)
-                        rewardDelta += (cfg.Reward.GetValueOrDefault("SwordOfStone")?.Multiplier ?? 1.25) - 1.0;
-                    break;
-            }
+            if (relic is FurCoat fc && fc.GetMarkedCoords()?.Contains(point.coord) == true)
+                dangerDelta += (cfg.Danger.GetValueOrDefault("FurCoat")?.Multiplier ?? 0.30) - 1.0;
         }
 
         dangerScore *= 1.0 + dangerDelta;
@@ -258,17 +280,23 @@ public class RouteScoringEngine
         var player = runState.Players[0];
         double dangerMult = GetDangerMultiplier(player);
         double rewardMult = GetRewardMultiplier(player);
+        var (eliteDangerDelta, eliteRewardDelta) = GetEliteRelicDeltas(player);
 
         var result = new Dictionary<string, (double, double)>();
         foreach (var (key, entry) in RouteScoringConfig.Current.BaseScores)
         {
             double d = entry.Danger * dangerMult;
             double r = entry.Reward * rewardMult;
+            if (key == "Elite")
+            {
+                d *= 1.0 + eliteDangerDelta;
+                r *= 1.0 + eliteRewardDelta;
+            }
             result[key] = (Math.Clamp(d, 0, 200), Math.Clamp(r, 0, 200));
         }
-        // Unknown is computed from the editable base scores, include it in effective display
+        // Unknown expected value — already includes dynamic mult + relic corrections internally
         var (unkDanger, unkReward) = ScoreUnknownByHook(runState);
-        result["Unknown"] = (Math.Clamp(unkDanger * dangerMult, 0, 200), Math.Clamp(unkReward * rewardMult, 0, 200));
+        result["Unknown"] = (Math.Clamp(unkDanger, 0, 200), Math.Clamp(unkReward, 0, 200));
         return result;
     }
 
