@@ -947,6 +947,18 @@ public partial class UIRoutePlannerPanel : Control
         RegisterButtonI18n(githubBtn, "⭐ 好用就点个 Star ~");
         content.AddChild(githubBtn);
 
+        var issuesBtn = new Button { Text = "↗ 反馈 Bug / 提建议" };
+        issuesBtn.CustomMinimumSize = new Vector2(0, 18);
+        issuesBtn.AddThemeFontSizeOverride("font_size", 9);
+        issuesBtn.Flat = true;
+        issuesBtn.Alignment = HorizontalAlignment.Center;
+        issuesBtn.MouseDefaultCursorShape = CursorShape.PointingHand;
+        issuesBtn.AddThemeColorOverride("font_color", new Color(1f, 1f, 1f, 0.17f));
+        issuesBtn.AddThemeColorOverride("font_hover_color", new Color(1f, 0.85f, 0.3f, 0.6f));
+        issuesBtn.Pressed += () => OS.ShellOpen("https://github.com/llzcx/STS2-RoutePlanner/issues");
+        RegisterButtonI18n(issuesBtn, "↗ 反馈 Bug / 提建议");
+        content.AddChild(issuesBtn);
+
         // --- Tooltip overlay ---
         BuildTooltip();
 

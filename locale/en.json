@@ -78,6 +78,7 @@
     "航线模式选择_desc": "Choose optimization strategy: Custom uses slider weights, Target follows priority order, High Reward maximizes rewards, Safe minimizes danger.",
     "重置默认": "Reset Defaults",
     "关闭": "Close",
-    "⭐ 好用就点个 Star ~": "⭐ Star this repo on GitHub ~"
+    "⭐ 好用就点个 Star ~": "⭐ Star this repo on GitHub ~",
+    "↗ 反馈 Bug / 提建议": "↗ Bug? Open an issue"
   }
 }
