@@ -935,13 +935,14 @@ public partial class UIRoutePlannerPanel : Control
         content.AddChild(actions);
 
         // --- GitHub link ---
-        var githubBtn = new Button { Text = "↗ GitHub" };
-        githubBtn.CustomMinimumSize = new Vector2(0, 20);
+        var githubBtn = new Button { Text = "⭐ 好用就点个 Star ~" };
+        githubBtn.CustomMinimumSize = new Vector2(0, 22);
         githubBtn.AddThemeFontSizeOverride("font_size", 10);
-        githubBtn.AddThemeColorOverride("font_color", new Color(1f, 1f, 1f, 0.30f));
         githubBtn.Flat = true;
         githubBtn.Alignment = HorizontalAlignment.Center;
         githubBtn.MouseDefaultCursorShape = CursorShape.PointingHand;
+        githubBtn.AddThemeColorOverride("font_color", new Color(1f, 1f, 1f, 0.25f));
+        githubBtn.AddThemeColorOverride("font_hover_color", new Color(1f, 0.85f, 0.3f, 0.8f));
         githubBtn.Pressed += () => OS.ShellOpen("https://github.com/llzcx/STS2-RoutePlanner/blob/master/README.md");
         content.AddChild(githubBtn);
 
