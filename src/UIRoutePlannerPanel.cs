@@ -345,12 +345,14 @@ public partial class UIRoutePlannerPanel : Control
             var lowerToggle = CreateConstraintToggle("≥", lowerActive, I18n.Tr("约束_至少"));
             var lowerInput = CreateConstraintValueEdit(constraint.LowerLimit);
             lowerInput.Visible = lowerActive;
+            VBoxContainer? lowerStepper = null;
             lowerToggle.Pressed += () =>
             {
                 bool wasActive = lowerToggle.HasMeta("active") && (bool)lowerToggle.GetMeta("active");
                 bool nowActive = !wasActive;
                 UpdateConstraintToggleVisual(lowerToggle, nowActive);
                 lowerInput.Visible = nowActive;
+                if (lowerStepper != null) lowerStepper.Visible = nowActive;
 
                 var cur = _instance.GetConstraint(parsedType);
                 ModLogger.Info($"≥ toggle [{parsedType}]: wasActive={wasActive} nowActive={nowActive} curMode={cur.Mode} curLowerLimits=[{string.Join(",", cur.LowerLimits)}] curUpperLimits=[{string.Join(",", cur.UpperLimits)}]");
@@ -371,17 +373,42 @@ public partial class UIRoutePlannerPanel : Control
             };
             constraintBox.AddChild(lowerToggle);
 
+            // ± stepper pair
+            lowerStepper = CreateStepperPair(
+                onPlus: () =>
+                {
+                    var c = _instance.GetConstraint(parsedType);
+                    int v = Math.Min(ConstraintMaxValue, c.LowerLimit + 1);
+                    lowerInput.Text = FmtConstraintValue(v);
+                    _instance.OnConstraintChanged(parsedType, c.Mode, v, c.UpperLimit);
+                },
+                onMinus: () =>
+                {
+                    var c = _instance.GetConstraint(parsedType);
+                    int v = Math.Max(0, c.LowerLimit - 1);
+                    lowerInput.Text = FmtConstraintValue(v);
+                    _instance.OnConstraintChanged(parsedType, c.Mode, v, c.UpperLimit);
+                });
+            lowerStepper.Visible = lowerInput.Visible;
+            constraintBox.AddChild(lowerStepper);
+
+            lowerInput.TextChanged += (text) =>
+            {
+                if (_weightsRefreshing) return;
+                int v = ParseInt(text, 0);
+                if (v > ConstraintMaxValue) { lowerInput.Text = ConstraintMaxValue.ToString(); }
+            };
             lowerInput.TextSubmitted += (text) =>
             {
                 if (_weightsRefreshing) return;
                 var c = _instance.GetConstraint(parsedType);
-                _instance.OnConstraintChanged(parsedType, c.Mode, ParseInt(text), c.UpperLimit);
+                ClampAndApply(lowerInput, c.LowerLimit, v => _instance.OnConstraintChanged(parsedType, c.Mode, v, c.UpperLimit));
             };
             lowerInput.FocusExited += () =>
             {
                 if (_weightsRefreshing) return;
                 var c = _instance.GetConstraint(parsedType);
-                _instance.OnConstraintChanged(parsedType, c.Mode, ParseInt(lowerInput.Text), c.UpperLimit);
+                ClampAndApply(lowerInput, c.LowerLimit, v => _instance.OnConstraintChanged(parsedType, c.Mode, v, c.UpperLimit));
             };
             constraintBox.AddChild(lowerInput);
 
@@ -389,12 +416,14 @@ public partial class UIRoutePlannerPanel : Control
             var upperToggle = CreateConstraintToggle("≤", upperActive, I18n.Tr("约束_最多"));
             var upperInput = CreateConstraintValueEdit(constraint.UpperLimit);
             upperInput.Visible = upperActive;
+            VBoxContainer? upperStepper = null;
             upperToggle.Pressed += () =>
             {
                 bool wasActive = upperToggle.HasMeta("active") && (bool)upperToggle.GetMeta("active");
                 bool nowActive = !wasActive;
                 UpdateConstraintToggleVisual(upperToggle, nowActive);
                 upperInput.Visible = nowActive;
+                if (upperStepper != null) upperStepper.Visible = nowActive;
 
                 var cur = _instance.GetConstraint(parsedType);
                 ModLogger.Info($"≤ toggle [{parsedType}]: wasActive={wasActive} nowActive={nowActive} curMode={cur.Mode} curLowerLimits=[{string.Join(",", cur.LowerLimits)}] curUpperLimits=[{string.Join(",", cur.UpperLimits)}]");
@@ -415,17 +444,42 @@ public partial class UIRoutePlannerPanel : Control
             };
             constraintBox.AddChild(upperToggle);
 
+            // ± stepper pair
+            upperStepper = CreateStepperPair(
+                onPlus: () =>
+                {
+                    var c = _instance.GetConstraint(parsedType);
+                    int v = Math.Min(ConstraintMaxValue, c.UpperLimit + 1);
+                    upperInput.Text = FmtConstraintValue(v);
+                    _instance.OnConstraintChanged(parsedType, c.Mode, c.LowerLimit, v);
+                },
+                onMinus: () =>
+                {
+                    var c = _instance.GetConstraint(parsedType);
+                    int v = Math.Max(0, c.UpperLimit - 1);
+                    upperInput.Text = FmtConstraintValue(v);
+                    _instance.OnConstraintChanged(parsedType, c.Mode, c.LowerLimit, v);
+                });
+            upperStepper.Visible = upperInput.Visible;
+            constraintBox.AddChild(upperStepper);
+
+            upperInput.TextChanged += (text) =>
+            {
+                if (_weightsRefreshing) return;
+                int v = ParseInt(text, 0);
+                if (v > ConstraintMaxValue) { upperInput.Text = ConstraintMaxValue.ToString(); }
+            };
             upperInput.TextSubmitted += (text) =>
             {
                 if (_weightsRefreshing) return;
                 var c = _instance.GetConstraint(parsedType);
-                _instance.OnConstraintChanged(parsedType, c.Mode, c.LowerLimit, ParseInt(text));
+                ClampAndApply(upperInput, c.UpperLimit, v => _instance.OnConstraintChanged(parsedType, c.Mode, c.LowerLimit, v));
             };
             upperInput.FocusExited += () =>
             {
                 if (_weightsRefreshing) return;
                 var c = _instance.GetConstraint(parsedType);
-                _instance.OnConstraintChanged(parsedType, c.Mode, c.LowerLimit, ParseInt(upperInput.Text));
+                ClampAndApply(upperInput, c.UpperLimit, v => _instance.OnConstraintChanged(parsedType, c.Mode, c.LowerLimit, v));
             };
             constraintBox.AddChild(upperInput);
 
@@ -494,10 +548,23 @@ public partial class UIRoutePlannerPanel : Control
         }
     }
 
-    private static int ParseInt(string text)
+    private const int ConstraintMaxValue = 50;
+
+    private static int ParseInt(string text, int lastGood = 0)
     {
-        if (int.TryParse(text, out var v) && v >= 0) return v;
-        return 0;
+        if (int.TryParse(text, out var v) && v >= 0)
+            return Math.Min(v, ConstraintMaxValue);
+        return lastGood;
+    }
+
+    private static string FmtConstraintValue(int v) => v > 0 ? v.ToString() : "";
+
+    private static void ClampAndApply(LineEdit input, int lastGood, Action<int> apply)
+    {
+        int v = ParseInt(input.Text, lastGood);
+        int clamped = Math.Min(v, ConstraintMaxValue);
+        input.Text = FmtConstraintValue(clamped);
+        apply(clamped);
     }
 
     private static Button CreateConstraintToggle(string symbol, bool active, string tooltip)
@@ -508,7 +575,7 @@ public partial class UIRoutePlannerPanel : Control
             CustomMinimumSize = new Vector2(28, 24),
             TooltipText = tooltip,
         };
-        btn.AddThemeFontSizeOverride("font_size", 11);
+        btn.AddThemeFontSizeOverride("font_size", 14);
 
         // Store active state as meta for inline state tracking
         btn.SetMeta("active", active);
@@ -537,6 +604,42 @@ public partial class UIRoutePlannerPanel : Control
         btn.AddThemeStyleboxOverride("focus", flatStyle);
 
         return btn;
+    }
+
+    private static VBoxContainer CreateStepperPair(Action onPlus, Action onMinus)
+    {
+        var box = new VBoxContainer();
+        box.AddThemeConstantOverride("separation", 0);
+
+        // + button — IceBlue accent for positive/increase action
+        var plus = new Button { Text = "+", CustomMinimumSize = new Vector2(20, 16) };
+        plus.AddThemeFontSizeOverride("font_size", 10);
+        plus.AddThemeColorOverride("font_color", new Color(1f, 1f, 1f, 0.55f));
+        var pn = new StyleBoxFlat { BgColor = new Color(1f, 1f, 1f, 0.06f) }; pn.SetCornerRadiusAll(2);
+        var ph = new StyleBoxFlat { BgColor = new Color(IceBlue.R, IceBlue.G, IceBlue.B, 0.12f) }; ph.SetCornerRadiusAll(2);
+        var pp = new StyleBoxFlat { BgColor = new Color(Gold.R, Gold.G, Gold.B, 0.20f) }; pp.SetCornerRadiusAll(2);
+        pp.BorderWidthLeft = 1; pp.BorderWidthRight = 1; pp.BorderWidthTop = 1; pp.BorderWidthBottom = 1;
+        pp.BorderColor = new Color(Gold.R, Gold.G, Gold.B, 0.35f);
+        plus.AddThemeStyleboxOverride("normal", pn); plus.AddThemeStyleboxOverride("hover", ph);
+        plus.AddThemeStyleboxOverride("pressed", pp); plus.AddThemeStyleboxOverride("focus", pp);
+        plus.Pressed += () => onPlus();
+        box.AddChild(plus);
+
+        // − button — WarmOrange accent for negative/decrease action
+        var minus = new Button { Text = "−", CustomMinimumSize = new Vector2(20, 16) };
+        minus.AddThemeFontSizeOverride("font_size", 10);
+        minus.AddThemeColorOverride("font_color", new Color(1f, 1f, 1f, 0.55f));
+        var mn = new StyleBoxFlat { BgColor = new Color(1f, 1f, 1f, 0.06f) }; mn.SetCornerRadiusAll(2);
+        var mh = new StyleBoxFlat { BgColor = new Color(WarmOrange.R, WarmOrange.G, WarmOrange.B, 0.10f) }; mh.SetCornerRadiusAll(2);
+        var mp = new StyleBoxFlat { BgColor = new Color(Gold.R, Gold.G, Gold.B, 0.20f) }; mp.SetCornerRadiusAll(2);
+        mp.BorderWidthLeft = 1; mp.BorderWidthRight = 1; mp.BorderWidthTop = 1; mp.BorderWidthBottom = 1;
+        mp.BorderColor = new Color(Gold.R, Gold.G, Gold.B, 0.35f);
+        minus.AddThemeStyleboxOverride("normal", mn); minus.AddThemeStyleboxOverride("hover", mh);
+        minus.AddThemeStyleboxOverride("pressed", mp); minus.AddThemeStyleboxOverride("focus", mp);
+        minus.Pressed += () => onMinus();
+        box.AddChild(minus);
+
+        return box;
     }
 
     private static LineEdit CreateConstraintValueEdit(int value)
