@@ -20,6 +20,29 @@ public partial class UIRoutePlannerPanel : Control
     private static readonly Color LimeGreen = new(0.29f, 0.87f, 0.50f);
     private static readonly Color SoftPurple = new(0.655f, 0.545f, 0.980f);
 
+    // Node type icon cache
+    private static readonly Dictionary<string, Texture2D?> _iconCache = new();
+
+    private static string GetNodeIconPath(MapPointType pt) => pt switch
+    {
+        MapPointType.Elite => "res://images/atlases/ui_atlas.sprites/map/icons/map_elite.tres",
+        MapPointType.Monster => "res://images/atlases/ui_atlas.sprites/map/icons/map_monster.tres",
+        MapPointType.RestSite => "res://images/atlases/ui_atlas.sprites/map/icons/map_rest.tres",
+        MapPointType.Shop => "res://images/atlases/ui_atlas.sprites/map/icons/map_shop.tres",
+        MapPointType.Treasure => "res://images/atlases/ui_atlas.sprites/map/icons/map_chest.tres",
+        MapPointType.Unknown => "res://images/atlases/ui_atlas.sprites/map/icons/map_unknown.tres",
+        _ => "res://images/atlases/ui_atlas.sprites/map/icons/map_unknown.tres",
+    };
+
+    private static Texture2D? LoadNodeIcon(MapPointType pt)
+    {
+        string path = GetNodeIconPath(pt);
+        if (_iconCache.TryGetValue(path, out var cached)) return cached;
+        var tex = ResourceLoader.Load<Texture2D>(path);
+        _iconCache[path] = tex;
+        return tex;
+    }
+
     // Dimension toggles (replaced plain CheckBox with styled pill buttons)
     private Button? _dangerToggleBtn;
     private Button? _rewardToggleBtn;
@@ -37,6 +60,10 @@ public partial class UIRoutePlannerPanel : Control
     private Label? _balancedLabel;
     private Label? _highRewardLabel;
     private Label? _safeLabel;
+    private HBoxContainer? _balancedIcons;
+    private HBoxContainer? _highRewardIcons;
+    private HBoxContainer? _safeIcons;
+    private HBoxContainer? _directedIcons;
     private Button? _balancedBtn;
     private Button? _highRewardBtn;
     private Button? _safeBtn;
@@ -121,8 +148,47 @@ public partial class UIRoutePlannerPanel : Control
         if (_directedLabel != null) _directedLabel.Text = _instance.GetRouteLabel(1);
         if (_highRewardLabel != null) _highRewardLabel.Text = _instance.GetRouteLabel(2);
         if (_safeLabel != null) _safeLabel.Text = _instance.GetRouteLabel(3);
+        RefreshRouteIcons(_balancedIcons, 0);
+        RefreshRouteIcons(_directedIcons, 1);
+        RefreshRouteIcons(_highRewardIcons, 2);
+        RefreshRouteIcons(_safeIcons, 3);
         UpdateRouteSelection();
         UpdateDrawButtonState();
+    }
+
+    private void RefreshRouteIcons(HBoxContainer? iconRow, int routeIndex)
+    {
+        if (iconRow == null) return;
+        while (iconRow.GetChildCount() > 0)
+        {
+            var c = iconRow.GetChild(0);
+            iconRow.RemoveChild(c);
+            c.QueueFree();
+        }
+
+        var counts = _instance.GetRouteCounts(routeIndex);
+        if (counts.Count == 0) return;
+
+        var order = new[] { MapPointType.Elite, MapPointType.Monster, MapPointType.RestSite, MapPointType.Shop, MapPointType.Treasure, MapPointType.Unknown };
+        foreach (var type in order)
+        {
+            if (!counts.TryGetValue(type, out int count)) continue;
+            var pair = new HBoxContainer();
+            pair.AddThemeConstantOverride("separation", 2);
+            var texRect = new TextureRect
+            {
+                Texture = LoadNodeIcon(type),
+                CustomMinimumSize = new Vector2(14, 14),
+                ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize,
+                StretchMode = TextureRect.StretchModeEnum.KeepAspectCentered,
+            };
+            pair.AddChild(texRect);
+            var label = new Label { Text = count.ToString(), VerticalAlignment = VerticalAlignment.Center };
+            label.AddThemeFontSizeOverride("font_size", 9);
+            label.AddThemeColorOverride("font_color", new Color(1f, 1f, 1f, 0.65f));
+            pair.AddChild(label);
+            iconRow.AddChild(pair);
+        }
     }
 
     private void OnLanguageChanged()
@@ -706,19 +772,19 @@ public partial class UIRoutePlannerPanel : Control
         // --- Route list ---
         content.AddChild(CreateSectionHeader("航线模式选择"));
 
-        _balancedBtn = CreateRouteButton("◉ 自定义", "自定义_desc", SoftPurple, out _balancedLabel);
+        _balancedBtn = CreateRouteButton("◉ 自定义", "自定义_desc", SoftPurple, out _balancedLabel, out _balancedIcons);
         _balancedBtn.Pressed += () => OnRouteButtonPressed(0);
         content.AddChild(_balancedBtn);
 
-        _directedBtn = CreateRouteButton("★ 定向", "定向_desc", WarmOrange, out _directedLabel);
+        _directedBtn = CreateRouteButton("★ 定向", "定向_desc", WarmOrange, out _directedLabel, out _directedIcons);
         _directedBtn.Pressed += () => OnRouteButtonPressed(1);
         content.AddChild(_directedBtn);
 
-        _highRewardBtn = CreateRouteButton("◆ 高收益", "高收益_desc", Colors.Gold, out _highRewardLabel);
+        _highRewardBtn = CreateRouteButton("◆ 高收益", "高收益_desc", Colors.Gold, out _highRewardLabel, out _highRewardIcons);
         _highRewardBtn.Pressed += () => OnRouteButtonPressed(2);
         content.AddChild(_highRewardBtn);
 
-        _safeBtn = CreateRouteButton("● 安全", "保守_desc", LimeGreen, out _safeLabel);
+        _safeBtn = CreateRouteButton("● 安全", "保守_desc", LimeGreen, out _safeLabel, out _safeIcons);
         _safeBtn.Pressed += () => OnRouteButtonPressed(3);
         content.AddChild(_safeBtn);
 
@@ -1056,21 +1122,27 @@ public partial class UIRoutePlannerPanel : Control
         return btn;
     }
 
-    private Button CreateRouteButton(string labelKey, string descKey, Color accentColor, out Label routeLabel)
+    private Button CreateRouteButton(string labelKey, string descKey, Color accentColor, out Label routeLabel, out HBoxContainer iconRow)
     {
         var btn = new Button();
         btn.ToggleMode = true;
-        btn.CustomMinimumSize = new Vector2(0, 42);
+        btn.CustomMinimumSize = new Vector2(0, 54);
         btn.SizeFlagsHorizontal = SizeFlags.ExpandFill;
         btn.AddThemeFontSizeOverride("font_size", 10);
 
-        // Inner HBox for icon + route text
+        var container = new VBoxContainer();
+        container.MouseFilter = MouseFilterEnum.Ignore;
+        container.AddThemeConstantOverride("separation", 1);
+        container.SetAnchorsPreset(LayoutPreset.FullRect);
+        container.OffsetLeft = 6;
+        container.OffsetRight = -6;
+        container.OffsetTop = 4;
+        container.OffsetBottom = -4;
+
+        // Row 1: icon + score text
         var row = new HBoxContainer();
         row.MouseFilter = MouseFilterEnum.Ignore;
         row.AddThemeConstantOverride("separation", 4);
-        row.SetAnchorsPreset(LayoutPreset.FullRect);
-        row.OffsetLeft = 6;
-        row.OffsetRight = -6;
 
         var iconLabel = new Label { Text = I18n.Tr(labelKey) };
         iconLabel.MouseFilter = MouseFilterEnum.Ignore;
@@ -1094,8 +1166,15 @@ public partial class UIRoutePlannerPanel : Control
         routeLabel.AddThemeFontSizeOverride("font_size", 10);
         routeLabel.SizeFlagsHorizontal = SizeFlags.ExpandFill;
         row.AddChild(routeLabel);
+        container.AddChild(row);
 
-        btn.AddChild(row);
+        // Row 2: node type icons with counts
+        iconRow = new HBoxContainer();
+        iconRow.MouseFilter = MouseFilterEnum.Ignore;
+        iconRow.AddThemeConstantOverride("separation", 8);
+        container.AddChild(iconRow);
+
+        btn.AddChild(container);
 
         // Normal
         var normalStyle = new StyleBoxFlat();

@@ -368,24 +368,38 @@ public class RoutePlannerInstance
             danger = route.Sum(p => _scoring.CalcDangerScore(p, _runState));
             reward = route.Sum(p => _scoring.CalcRewardScore(p, _runState));
         }
-        int elites = route.Count(p => p.PointType == MapPointType.Elite);
-        int rests = route.Count(p => p.PointType == MapPointType.RestSite);
-        int treasures = route.Count(p => p.PointType == MapPointType.Treasure);
-        int shops = route.Count(p => p.PointType == MapPointType.Shop);
-        int monsters = route.Count(p => p.PointType == MapPointType.Monster);
-        int unknowns = route.Count(p => p.PointType == MapPointType.Unknown);
-
-        var (dW, rW) = GetEffectiveWeights();
-        string counts = BuildCountsString(elites, rests, treasures, shops, monsters, unknowns);
 
         return index switch
         {
-            0 => $"{I18n.Tr("自定义")} {I18n.Tr("危险")}{F(danger)} {I18n.Tr("奖励")}{F(reward)} | {counts}",
-            1 => $"{I18n.Tr("定向")} {I18n.Tr("危险")}{F(danger)} {I18n.Tr("奖励")}{F(reward)} | {counts}",
-            2 => $"{I18n.Tr("高收益")} {I18n.Tr("奖励")}{F(reward)} | {counts}",
-            3 => $"{I18n.Tr("安全")} {I18n.Tr("危险")}{F(danger)} | {counts}",
+            0 => $"{I18n.Tr("自定义")} {I18n.Tr("危险")}{F(danger)} {I18n.Tr("奖励")}{F(reward)}",
+            1 => $"{I18n.Tr("定向")} {I18n.Tr("危险")}{F(danger)} {I18n.Tr("奖励")}{F(reward)}",
+            2 => $"{I18n.Tr("高收益")} {I18n.Tr("奖励")}{F(reward)}",
+            3 => $"{I18n.Tr("安全")} {I18n.Tr("危险")}{F(danger)}",
             _ => "",
         };
+    }
+
+    public Dictionary<MapPointType, int> GetRouteCounts(int index)
+    {
+        var result = new Dictionary<MapPointType, int>();
+        if (_currentResult == null) return result;
+        var route = index switch
+        {
+            0 => _currentResult.BalancedRoute,
+            1 => _currentResult.PriorityRoute,
+            2 => _currentResult.HighRewardRoute,
+            3 => _currentResult.SafeRoute,
+            _ => _currentResult.BalancedRoute,
+        };
+        if (route.Count <= 1) return result; // skip start node
+
+        var futureNodes = route.Skip(1).ToList();
+        foreach (var type in new[] { MapPointType.Elite, MapPointType.RestSite, MapPointType.Treasure, MapPointType.Shop, MapPointType.Monster, MapPointType.Unknown })
+        {
+            int c = futureNodes.Count(p => p.PointType == type);
+            if (c > 0) result[type] = c;
+        }
+        return result;
     }
 
     public MapPointType[] GetPriorityOrder() => _priorityOrder;
@@ -422,13 +436,6 @@ public class RoutePlannerInstance
     }
 
     private static string F(double v) => v.ToString("F0");
-
-    private static string BuildCountsString(int elites, int rests, int treasures, int shops, int monsters, int unknowns)
-    {
-        string counts = $"{elites}{I18n.Tr("精英")} {rests}{I18n.Tr("休息")} {treasures}{I18n.Tr("宝箱")} {shops}{I18n.Tr("商店")} {monsters}{I18n.Tr("普通")}";
-        if (unknowns > 0) counts += $" {unknowns}{I18n.Tr("未知")}";
-        return counts;
-    }
 
     /// <summary>Get the latest RunState from NMapScreen via reflection.</summary>
     private RunState? GetRunState()
