@@ -46,6 +46,8 @@
     "约束_仅上限": "Upper Only",
     "约束_仅下限": "Lower Only",
     "约束_上下限": "Both",
+    "约束_至少": "Min — at least this many of the type in route",
+    "约束_最多": "Max — at most this many of the type in route",
     "约束模式提示": "Click to cycle constraint mode: None → Upper → Lower → Both",
     "无符合路线": "No route matches constraints",
     "自动绘制提示": "Auto-draw route on every config change",

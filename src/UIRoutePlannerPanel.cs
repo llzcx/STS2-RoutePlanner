@@ -50,6 +50,9 @@ public partial class UIRoutePlannerPanel : Control
     private Button? _langBtn;
     private Button? _autoDrawBtn;
 
+    // Preset buttons
+    private readonly Dictionary<string, Button> _presetButtons = new();
+
     // Tooltip
     private PanelContainer? _tooltip;
     private Label? _tooltipTitle;
@@ -62,6 +65,7 @@ public partial class UIRoutePlannerPanel : Control
     // State
     private bool _isCollapsed;
     private int _selectedRoute;
+    private bool _weightsRefreshing; // guard against FocusExited re-entrancy during rebuild
 
     public UIRoutePlannerPanel(RoutePlannerInstance instance)
     {
@@ -75,6 +79,40 @@ public partial class UIRoutePlannerPanel : Control
     {
         if (_dangerSlider != null) _dangerSlider.Value = dangerWeight * 100;
         if (_rewardSlider != null) _rewardSlider.Value = rewardWeight * 100;
+    }
+
+    public void UpdatePresetHighlight(string preset)
+    {
+        foreach (var (key, btn) in _presetButtons)
+        {
+            bool isActive = key == preset;
+            if (isActive)
+            {
+                btn.AddThemeColorOverride("font_color", Gold);
+                var activeStyle = new StyleBoxFlat
+                {
+                    BgColor = new Color(Gold.R, Gold.G, Gold.B, 0.2f),
+                    BorderWidthLeft = 1, BorderWidthRight = 1,
+                    BorderWidthTop = 1, BorderWidthBottom = 1,
+                    BorderColor = Gold,
+                };
+                activeStyle.SetCornerRadiusAll(0);
+                btn.AddThemeStyleboxOverride("normal", activeStyle);
+            }
+            else
+            {
+                btn.AddThemeColorOverride("font_color", new Color(1f, 1f, 1f, 1f));
+                var normalStyle = new StyleBoxFlat
+                {
+                    BgColor = new Color(0, 0, 0, 0),
+                    BorderWidthLeft = 1, BorderWidthRight = 1,
+                    BorderWidthTop = 1, BorderWidthBottom = 1,
+                    BorderColor = new Color(Gold.R, Gold.G, Gold.B, 0.4f),
+                };
+                normalStyle.SetCornerRadiusAll(0);
+                btn.AddThemeStyleboxOverride("normal", normalStyle);
+            }
+        }
     }
 
     public void RefreshRoutes()
@@ -144,7 +182,10 @@ public partial class UIRoutePlannerPanel : Control
 
     public void RefreshWeights()
     {
-        if (_weightsList == null) return;
+        if (_weightsList == null || _weightsRefreshing) return;
+        _weightsRefreshing = true;
+        try
+        {
 
         while (_weightsList.GetChildCount() > 0)
         {
@@ -216,111 +257,89 @@ public partial class UIRoutePlannerPanel : Control
             var constraint = _instance.GetConstraint(parsedType);
             string capturedKey = typeKey;
 
-            // Mode cycle button
-            var modeBtn = CreateConstraintModeButton(constraint.Mode);
-            modeBtn.Pressed += () =>
+            // Constraint toggles: ≥ (at least) and ≤ (at most)
+            bool lowerActive = constraint.Mode == ConstraintMode.LowerOnly || constraint.Mode == ConstraintMode.Both;
+            bool upperActive = constraint.Mode == ConstraintMode.UpperOnly || constraint.Mode == ConstraintMode.Both;
+
+            // ≥ toggle — lower limit
+            var lowerToggle = CreateConstraintToggle("≥", lowerActive, I18n.Tr("约束_至少"));
+            var lowerInput = CreateConstraintValueEdit(constraint.LowerLimit);
+            lowerInput.Visible = lowerActive;
+            lowerToggle.Pressed += () =>
             {
+                bool wasActive = lowerToggle.HasMeta("active") && (bool)lowerToggle.GetMeta("active");
+                bool nowActive = !wasActive;
+                UpdateConstraintToggleVisual(lowerToggle, nowActive);
+                lowerInput.Visible = nowActive;
+
                 var cur = _instance.GetConstraint(parsedType);
-                var nextMode = CycleConstraintMode(cur.Mode);
-
-                // Read saved values for the new mode, with sensible defaults if never set
-                int savedLower = cur.LowerLimits[(int)nextMode];
-                int savedUpper = cur.UpperLimits[(int)nextMode];
-                int lower = nextMode switch
-                {
-                    ConstraintMode.LowerOnly => savedLower > 0 ? savedLower : 1,
-                    ConstraintMode.Both => savedLower > 0 ? savedLower : 1,
-                    _ => 0,
-                };
-                int upper = nextMode switch
-                {
-                    ConstraintMode.UpperOnly => savedUpper > 0 ? savedUpper : 3,
-                    ConstraintMode.Both => savedUpper > 0 ? savedUpper : Math.Max(lower + 1, 5),
-                    _ => 0,
-                };
-
-                // Update mode button symbol immediately (inline, no full rebuild)
-                modeBtn.Text = GetConstraintModeSymbol(nextMode);
-
-                // Remove old constraint input children (modeBtn stays at index 0)
-                while (constraintBox.GetChildCount() > 1)
-                {
-                    var old = constraintBox.GetChild(1);
-                    constraintBox.RemoveChild(old);
-                    old.QueueFree();
-                }
-
-                // Add new constraint inputs for the new mode
-                if (nextMode != ConstraintMode.None)
-                {
-                    if (nextMode == ConstraintMode.LowerOnly || nextMode == ConstraintMode.Both)
-                    {
-                        var newLower = CreateConstraintValueEdit(lower);
-                        newLower.TextSubmitted += (text) =>
-                        {
-                            var c2 = _instance.GetConstraint(parsedType);
-                            _instance.OnConstraintChanged(parsedType, c2.Mode, ParseInt(text), c2.UpperLimit);
-                        };
-                        newLower.FocusExited += () =>
-                        {
-                            var c2 = _instance.GetConstraint(parsedType);
-                            _instance.OnConstraintChanged(parsedType, c2.Mode, ParseInt(newLower.Text), c2.UpperLimit);
-                        };
-                        constraintBox.AddChild(newLower);
-                    }
-                    if (nextMode == ConstraintMode.UpperOnly || nextMode == ConstraintMode.Both)
-                    {
-                        var newUpper = CreateConstraintValueEdit(upper);
-                        newUpper.TextSubmitted += (text) =>
-                        {
-                            var c2 = _instance.GetConstraint(parsedType);
-                            _instance.OnConstraintChanged(parsedType, c2.Mode, c2.LowerLimit, ParseInt(text));
-                        };
-                        newUpper.FocusExited += () =>
-                        {
-                            var c2 = _instance.GetConstraint(parsedType);
-                            _instance.OnConstraintChanged(parsedType, c2.Mode, c2.LowerLimit, ParseInt(newUpper.Text));
-                        };
-                        constraintBox.AddChild(newUpper);
-                    }
-                }
-
-                _instance.OnConstraintChanged(parsedType, nextMode, lower, upper);
+                bool upperStillActive = cur.Mode == ConstraintMode.UpperOnly || cur.Mode == ConstraintMode.Both;
+                int lower = nowActive ? (cur.LowerLimit > 0 ? cur.LowerLimit : 1) : 0;
+                int upper = upperStillActive ? cur.UpperLimit : 0;
+                var newMode = DeriveConstraintMode(nowActive, upperStillActive);
+                _instance.OnConstraintChanged(parsedType, newMode, lower, upper);
             };
-            constraintBox.AddChild(modeBtn);
+            constraintBox.AddChild(lowerToggle);
 
-            // Constraint value input(s) — only show when mode != None
+            lowerInput.TextSubmitted += (text) =>
+            {
+                if (_weightsRefreshing) return;
+                var c = _instance.GetConstraint(parsedType);
+                _instance.OnConstraintChanged(parsedType, c.Mode, ParseInt(text), c.UpperLimit);
+            };
+            lowerInput.FocusExited += () =>
+            {
+                if (_weightsRefreshing) return;
+                var c = _instance.GetConstraint(parsedType);
+                _instance.OnConstraintChanged(parsedType, c.Mode, ParseInt(lowerInput.Text), c.UpperLimit);
+            };
+            constraintBox.AddChild(lowerInput);
+
+            // ≤ toggle — upper limit
+            var upperToggle = CreateConstraintToggle("≤", upperActive, I18n.Tr("约束_最多"));
+            var upperInput = CreateConstraintValueEdit(constraint.UpperLimit);
+            upperInput.Visible = upperActive;
+            upperToggle.Pressed += () =>
+            {
+                bool wasActive = upperToggle.HasMeta("active") && (bool)upperToggle.GetMeta("active");
+                bool nowActive = !wasActive;
+                UpdateConstraintToggleVisual(upperToggle, nowActive);
+                upperInput.Visible = nowActive;
+
+                var cur = _instance.GetConstraint(parsedType);
+                bool lowerStillActive = cur.Mode == ConstraintMode.LowerOnly || cur.Mode == ConstraintMode.Both;
+                int lower = lowerStillActive ? cur.LowerLimit : 0;
+                int upper = nowActive ? (cur.UpperLimit > 0 ? cur.UpperLimit : 3) : 0;
+                var newMode = DeriveConstraintMode(lowerStillActive, nowActive);
+                _instance.OnConstraintChanged(parsedType, newMode, lower, upper);
+            };
+            constraintBox.AddChild(upperToggle);
+
+            upperInput.TextSubmitted += (text) =>
+            {
+                if (_weightsRefreshing) return;
+                var c = _instance.GetConstraint(parsedType);
+                _instance.OnConstraintChanged(parsedType, c.Mode, c.LowerLimit, ParseInt(text));
+            };
+            upperInput.FocusExited += () =>
+            {
+                if (_weightsRefreshing) return;
+                var c = _instance.GetConstraint(parsedType);
+                _instance.OnConstraintChanged(parsedType, c.Mode, c.LowerLimit, ParseInt(upperInput.Text));
+            };
+            constraintBox.AddChild(upperInput);
+
+            // Left border: gold when satisfied, warm-orange warning when failing
             if (constraint.Mode != ConstraintMode.None)
             {
-                if (constraint.Mode == ConstraintMode.LowerOnly || constraint.Mode == ConstraintMode.Both)
+                var failingSet = _instance.GetFailingConstraints();
+                bool isFailing = failingSet.Contains(parsedType);
+                cardStyle.BorderWidthLeft = 2;
+                cardStyle.BorderColor = isFailing ? WarmOrange : Gold;
+                if (isFailing)
                 {
-                    var lowerEdit = CreateConstraintValueEdit(constraint.LowerLimit);
-                    lowerEdit.TextSubmitted += (text) =>
-                    {
-                        var c = _instance.GetConstraint(parsedType);
-                        _instance.OnConstraintChanged(parsedType, c.Mode, ParseInt(text), c.UpperLimit);
-                    };
-                    lowerEdit.FocusExited += () =>
-                    {
-                        var c = _instance.GetConstraint(parsedType);
-                        _instance.OnConstraintChanged(parsedType, c.Mode, ParseInt(lowerEdit.Text), c.UpperLimit);
-                    };
-                    constraintBox.AddChild(lowerEdit);
-                }
-                if (constraint.Mode == ConstraintMode.UpperOnly || constraint.Mode == ConstraintMode.Both)
-                {
-                    var upperEdit = CreateConstraintValueEdit(constraint.UpperLimit);
-                    upperEdit.TextSubmitted += (text) =>
-                    {
-                        var c = _instance.GetConstraint(parsedType);
-                        _instance.OnConstraintChanged(parsedType, c.Mode, c.LowerLimit, ParseInt(text));
-                    };
-                    upperEdit.FocusExited += () =>
-                    {
-                        var c = _instance.GetConstraint(parsedType);
-                        _instance.OnConstraintChanged(parsedType, c.Mode, c.LowerLimit, ParseInt(upperEdit.Text));
-                    };
-                    constraintBox.AddChild(upperEdit);
+                    // Subtle warning tint on the card background
+                    cardStyle.BgColor = new Color(WarmOrange.R, WarmOrange.G, WarmOrange.B, 0.08f);
                 }
             }
 
@@ -341,24 +360,39 @@ public partial class UIRoutePlannerPanel : Control
 
             _weightsList.AddChild(row);
         }
+        }
+        finally
+        {
+            _weightsRefreshing = false;
+        }
     }
 
-    private static ConstraintMode CycleConstraintMode(ConstraintMode current) => current switch
-    {
-        ConstraintMode.None => ConstraintMode.UpperOnly,
-        ConstraintMode.UpperOnly => ConstraintMode.LowerOnly,
-        ConstraintMode.LowerOnly => ConstraintMode.Both,
-        ConstraintMode.Both => ConstraintMode.None,
-        _ => ConstraintMode.None,
-    };
+    private static ConstraintMode DeriveConstraintMode(bool lowerActive, bool upperActive) =>
+        (lowerActive, upperActive) switch
+        {
+            (true, true) => ConstraintMode.Both,
+            (true, false) => ConstraintMode.LowerOnly,
+            (false, true) => ConstraintMode.UpperOnly,
+            _ => ConstraintMode.None,
+        };
 
-    private static string GetConstraintModeSymbol(ConstraintMode mode) => mode switch
+    private static void UpdateConstraintToggleVisual(Button btn, bool active)
     {
-        ConstraintMode.UpperOnly => "≤",
-        ConstraintMode.LowerOnly => "≥",
-        ConstraintMode.Both => "⇅",
-        _ => "—",
-    };
+        btn.SetMeta("active", active);
+        if (active)
+        {
+            btn.AddThemeColorOverride("font_color", Gold);
+            var activeStyle = new StyleBoxFlat { BgColor = new Color(Gold.R, Gold.G, Gold.B, 0.15f) };
+            activeStyle.SetCornerRadiusAll(3);
+            btn.AddThemeStyleboxOverride("normal", activeStyle);
+        }
+        else
+        {
+            btn.AddThemeColorOverride("font_color", new Color(1f, 1f, 1f, 0.4f));
+            var inactiveStyle = new StyleBoxFlat { BgColor = new Color(0, 0, 0, 0) };
+            btn.AddThemeStyleboxOverride("normal", inactiveStyle);
+        }
+    }
 
     private static int ParseInt(string text)
     {
@@ -366,21 +400,39 @@ public partial class UIRoutePlannerPanel : Control
         return 0;
     }
 
-    private Button CreateConstraintModeButton(ConstraintMode mode)
+    private static Button CreateConstraintToggle(string symbol, bool active, string tooltip)
     {
         var btn = new Button
         {
-            Text = GetConstraintModeSymbol(mode),
-            CustomMinimumSize = new Vector2(22, 18),
-            TooltipText = I18n.Tr("约束模式提示"),
+            Text = symbol,
+            CustomMinimumSize = new Vector2(28, 24),
+            TooltipText = tooltip,
         };
-        btn.AddThemeFontSizeOverride("font_size", 9);
-        btn.AddThemeColorOverride("font_color", new Color(1f, 1f, 1f, 0.55f));
+        btn.AddThemeFontSizeOverride("font_size", 11);
 
-        var flatStyle = new StyleBoxFlat { BgColor = new Color(0, 0, 0, 0) };
-        btn.AddThemeStyleboxOverride("normal", flatStyle);
+        // Store active state as meta for inline state tracking
+        btn.SetMeta("active", active);
+
+        if (active)
+        {
+            btn.AddThemeColorOverride("font_color", Gold);
+            var activeStyle = new StyleBoxFlat { BgColor = new Color(Gold.R, Gold.G, Gold.B, 0.15f) };
+            activeStyle.SetCornerRadiusAll(3);
+            btn.AddThemeStyleboxOverride("normal", activeStyle);
+        }
+        else
+        {
+            btn.AddThemeColorOverride("font_color", new Color(1f, 1f, 1f, 0.4f));
+            var inactiveStyle = new StyleBoxFlat { BgColor = new Color(0, 0, 0, 0) };
+            btn.AddThemeStyleboxOverride("normal", inactiveStyle);
+        }
+
         var hoverStyle = new StyleBoxFlat { BgColor = new Color(1f, 1f, 1f, 0.08f) };
+        hoverStyle.SetCornerRadiusAll(3);
         btn.AddThemeStyleboxOverride("hover", hoverStyle);
+
+        var flatStyle = new StyleBoxFlat { BgColor = new Color(1f, 1f, 1f, 0.04f) };
+        flatStyle.SetCornerRadiusAll(3);
         btn.AddThemeStyleboxOverride("pressed", flatStyle);
         btn.AddThemeStyleboxOverride("focus", flatStyle);
 
@@ -392,10 +444,10 @@ public partial class UIRoutePlannerPanel : Control
         var edit = new LineEdit
         {
             Text = value > 0 ? value.ToString() : "",
-            CustomMinimumSize = new Vector2(26, 18),
+            CustomMinimumSize = new Vector2(36, 24),
             MouseFilter = MouseFilterEnum.Stop,
         };
-        edit.AddThemeFontSizeOverride("font_size", 9);
+        edit.AddThemeFontSizeOverride("font_size", 11);
         edit.AddThemeColorOverride("font_color", new Color(1f, 1f, 1f, 0.7f));
 
         var bgStyle = new StyleBoxFlat
@@ -610,22 +662,27 @@ public partial class UIRoutePlannerPanel : Control
         var consBtn = CreatePresetButton("保守");
         consBtn.Pressed += () => _instance.OnPresetSelected("conservative");
         RegisterButtonI18n(consBtn, "保守");
+        _presetButtons["conservative"] = consBtn;
         presetBox.AddChild(consBtn);
         var safeBtn = CreatePresetButton("求稳");
         safeBtn.Pressed += () => _instance.OnPresetSelected("safe_reward");
         RegisterButtonI18n(safeBtn, "求稳");
+        _presetButtons["safe_reward"] = safeBtn;
         presetBox.AddChild(safeBtn);
         var balBtn = CreatePresetButton("均衡");
         balBtn.Pressed += () => _instance.OnPresetSelected("balanced");
         RegisterButtonI18n(balBtn, "均衡");
+        _presetButtons["balanced"] = balBtn;
         presetBox.AddChild(balBtn);
         var aggBtn = CreatePresetButton("激进");
         aggBtn.Pressed += () => _instance.OnPresetSelected("aggressive");
         RegisterButtonI18n(aggBtn, "激进");
+        _presetButtons["aggressive"] = aggBtn;
         presetBox.AddChild(aggBtn);
         var extBtn = CreatePresetButton("极端");
         extBtn.Pressed += () => _instance.OnPresetSelected("extreme");
         RegisterButtonI18n(extBtn, "极端");
+        _presetButtons["extreme"] = extBtn;
         presetBox.AddChild(extBtn);
         content.AddChild(presetBox);
 
@@ -722,6 +779,7 @@ public partial class UIRoutePlannerPanel : Control
         _instance.OnRouteSelected(index);
         UpdateRouteSelection();
         UpdateDrawButtonState();
+        RefreshWeights();
         _instance.TryAutoDraw();
     }
 
@@ -798,9 +856,11 @@ public partial class UIRoutePlannerPanel : Control
                 var tween = CreateTween();
                 tween.TweenProperty(c, "modulate:a", 0f, 0.15f);
                 tween.SetEase(Tween.EaseType.InOut);
+                tween.Finished += () => { c.Visible = false; c.MouseFilter = MouseFilterEnum.Ignore; };
             }
             else
             {
+                c.MouseFilter = MouseFilterEnum.Pass;
                 c.Modulate = new Color(1, 1, 1, 0);
                 c.Visible = true;
                 var tween = CreateTween();
@@ -810,9 +870,8 @@ public partial class UIRoutePlannerPanel : Control
             }
         }
 
-        // Collapsed: 40px height = offset_top(90) + 40 = 130; pass clicks through
+        // Collapsed: 40px height = offset_top(90) + 40 = 130
         float targetBottom = _isCollapsed ? 130f : 800f;
-        MouseFilter = _isCollapsed ? MouseFilterEnum.Ignore : MouseFilterEnum.Stop;
         CustomMinimumSize = _isCollapsed ? new Vector2(400, 0) : new Vector2(400, 640);
         var panelTween = CreateTween();
         panelTween.TweenProperty(this, "offset_bottom", targetBottom, 0.22f);
@@ -1061,8 +1120,8 @@ public partial class UIRoutePlannerPanel : Control
     private static Button CreateArrowButton(string text, bool enabled)
     {
         var btn = new Button { Text = text, Disabled = !enabled };
-        btn.CustomMinimumSize = new Vector2(24, 16);
-        btn.AddThemeFontSizeOverride("font_size", 10);
+        btn.CustomMinimumSize = new Vector2(28, 22);
+        btn.AddThemeFontSizeOverride("font_size", 11);
         btn.MouseFilter = enabled ? MouseFilterEnum.Stop : MouseFilterEnum.Ignore;
 
         var normalStyle = new StyleBoxFlat { BgColor = new Color(0, 0, 0, 0) };

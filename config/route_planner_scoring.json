@@ -14,11 +14,11 @@
       "reward": 35
     },
     "Shop": {
-      "danger": 5,
+      "danger": 0,
       "reward": 45
     },
     "Treasure": {
-      "danger": 5,
+      "danger": 0,
       "reward": 50
     },
     "Event": {

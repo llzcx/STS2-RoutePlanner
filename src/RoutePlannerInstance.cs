@@ -71,6 +71,7 @@ public class RoutePlannerInstance
     private int _selectedRouteIndex;
     private Timer? _configPollTimer;
     private bool _autoDraw;
+    private string _currentPreset = "";
 
     private static readonly MapPointType[] DefaultPriorityOrder =
     {
@@ -193,6 +194,8 @@ public class RoutePlannerInstance
     {
         _dangerWeight = dangerWeight;
         _rewardWeight = rewardWeight;
+        _currentPreset = "";
+        _panel?.UpdatePresetHighlight("");
         RecalculateDPOnly();
         _panel?.RefreshWeights();
     }
@@ -207,21 +210,26 @@ public class RoutePlannerInstance
 
     private (double dangerW, double rewardW) GetEffectiveWeights()
     {
-        double d = _dangerEnabled ? _dangerWeight : 0;
+        // When danger disabled: use 0.5 so (2*d - 1) = 0, danger is neutral in formula
+        double d = _dangerEnabled ? _dangerWeight : 0.5;
         double r = _rewardEnabled ? _rewardWeight : 0;
         return (d, r);
     }
+
+    public string CurrentPreset => _currentPreset;
 
     public void OnPresetSelected(string preset)
     {
         var presets = RouteScoringConfig.Current.WeightPresets;
         if (presets.TryGetValue(preset, out var p))
         {
+            _currentPreset = preset;
             _dangerWeight = p.DangerWeight;
             _rewardWeight = p.RewardWeight;
             RecalculateDPOnly();
             _panel?.SetSliderValues(_dangerWeight, _rewardWeight);
             _panel?.RefreshWeights();
+            _panel?.UpdatePresetHighlight(preset);
         }
     }
 
@@ -279,6 +287,23 @@ public class RoutePlannerInstance
             3 => _currentResult.SafeConstraintsSatisfied,
             _ => true,
         };
+    }
+
+    public HashSet<MapPointType> GetFailingConstraints()
+    {
+        var failing = new HashSet<MapPointType>();
+        var route = GetSelectedRoute();
+        if (route == null || route.Count == 0) return failing;
+
+        var futureNodes = route.Skip(1).ToList();
+        foreach (var (type, constraint) in _constraints)
+        {
+            if (constraint.Mode == ConstraintMode.None) continue;
+            int count = futureNodes.Count(p => p.PointType == type);
+            if (!constraint.IsSatisfied(count))
+                failing.Add(type);
+        }
+        return failing;
     }
 
     public Dictionary<string, (double danger, double reward)> GetEffectiveTypeScores()
@@ -393,6 +418,7 @@ public class RoutePlannerInstance
         ModLogger.Info($"Constraint changed: {type} mode={mode} lower={lower} upper={upper}, active={_constraints.Count(kv => kv.Value.Mode != ConstraintMode.None)}");
         SaveConstraints();
         RecalculateDPOnly();
+        _panel?.RefreshWeights();
     }
 
     private static string F(double v) => v.ToString("F0");
