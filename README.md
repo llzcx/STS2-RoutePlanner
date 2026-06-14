@@ -81,7 +81,7 @@ No more "this path feels right." Let the data guide your climb.
 
 ### Key Features
 
-- 🧠 **DP-Powered Route Search** — Depth-first dynamic programming finds the optimal path from start to boss in milliseconds
+- 🧠 **DP-Powered Route Search** — Depth-first dynamic programming finds the optimal path in milliseconds, starting from your **current position** — not just the map origin. Works mid-act at any point.
 - ⚖️ **Dual-Dimension Scoring** — Every node scored independently on Danger and Reward, combined via configurable weights
 - 🩸 **Adaptive State Awareness** — Low HP? Block deficit? No potions? Danger scores adjust in real-time based on your condition
 - 🏆 **Relic-Aware Corrections** — Sling of Courage, War Hammer, Black Star and more automatically tweak elite node scores
@@ -90,6 +90,8 @@ No more "this path feels right." Let the data guide your climb.
 - 🔒 **Node Constraints** — Set per-type ≥/≤ limits — target exactly the path you want
 - 🎯 **Priority Mode** — Rank node types by importance; the engine finds the best route matching your priorities
 - 🎨 **Native Map Drawing** — Routes rendered directly on the game map via the built-in drawing API — no overlay hacks. Fully visible to all players in co-op multiplayer.
+- 🗺️ **Dual Boss Support** — Handles both primary and second boss map points for comprehensive route coverage
+- ⚡ **Golden Path Fast Track** — Detects and optimizes linear golden path corridors for instant results
 - 🌐 **i18n Support** — Full Chinese / English switching, easy to extend
 - 🔥 **Config Hot-Reload** — Edit JSON configs while the game runs; changes apply instantly
 
