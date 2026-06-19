@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Reflection;
 using System.Text;
 using Godot;
 using MegaCrit.Sts2.Core.Logging;
@@ -11,26 +12,27 @@ public static class ModLogger
     private static string? _logPath;
     private static readonly object _lock = new();
 
+    /// <summary>Mod root directory — derived from DLL location, works for both local and Steam Workshop installs.</summary>
+    public static string ModDir => Path.GetDirectoryName(typeof(ModLogger).Assembly.Location) ?? "";
+
     public static void Init()
     {
-        // Use the same base path as the game's ModManager: the executable's directory
-        string executablePath = OS.GetExecutablePath();
-        string directoryName = Path.GetDirectoryName(executablePath) ?? "";
-        _logPath = Path.Combine(directoryName, "mods", "RoutePlanner", "logs", "route_planner.log");
+        // Use DLL location so it works both from mods/ and workshop/content/.../
+        _logPath = Path.Combine(ModDir, "logs", "route_planner.log");
 
         try
         {
             var dir = Path.GetDirectoryName(_logPath);
             if (dir != null) Directory.CreateDirectory(dir);
-            File.AppendAllText(_logPath, "", Encoding.UTF8); // Touch file to verify write access
+            File.AppendAllText(_logPath, "", Encoding.UTF8);
         }
         catch (Exception ex)
         {
-            // Fallback: try project directory
+            // Fallback: try game's mods directory
             try
             {
-                _logPath = Path.Combine(
-                    AppDomain.CurrentDomain.BaseDirectory, "mods", "RoutePlanner", "logs", "route_planner.log");
+                string exeDir = Path.GetDirectoryName(OS.GetExecutablePath()) ?? "";
+                _logPath = Path.Combine(exeDir, "mods", "RoutePlanner", "logs", "route_planner.log");
                 var dir = Path.GetDirectoryName(_logPath);
                 if (dir != null) Directory.CreateDirectory(dir);
             }

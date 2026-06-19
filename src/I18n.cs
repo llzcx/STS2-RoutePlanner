@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Reflection;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Godot;
@@ -15,11 +16,11 @@ public static class I18n
     private static Dictionary<string, string> _current = new();
     private static readonly Dictionary<string, Dictionary<string, string>> _cache = new();
 
-    private static string LocaleDir => Path.Combine(
-        Path.GetDirectoryName(OS.GetExecutablePath()) ?? "", "mods", "RoutePlanner", "locale");
+    private static string ModDir => Path.GetDirectoryName(typeof(I18n).Assembly.Location) ?? "";
 
-    private static string SettingsPath => Path.Combine(
-        Path.GetDirectoryName(OS.GetExecutablePath()) ?? "", "mods", "RoutePlanner", "config", "route_planner_settings.json");
+    private static string LocaleDir => Path.Combine(ModDir, "locale");
+
+    private static string SettingsPath => Path.Combine(ModDir, "config", "route_planner_settings.json");
 
     /// <summary>Priority order for route types. Loaded from settings, persisted on change.</summary>
     public static string[] PriorityOrder { get; set; } = Array.Empty<string>();

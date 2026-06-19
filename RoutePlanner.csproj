@@ -10,15 +10,15 @@
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="GodotSharp">
-      <HintPath>..\..\.godot\mono\temp\bin\Debug\GodotSharp.dll</HintPath>
+      <HintPath>..\..\SlayTheSpire2\.godot\mono\temp\bin\Debug\GodotSharp.dll</HintPath>
       <Private>false</Private>
     </Reference>
     <Reference Include="0Harmony">
-      <HintPath>..\..\.godot\mono\temp\bin\Debug\0Harmony.dll</HintPath>
+      <HintPath>..\..\SlayTheSpire2\.godot\mono\temp\bin\Debug\0Harmony.dll</HintPath>
       <Private>false</Private>
     </Reference>
     <Reference Include="sts2">
-      <HintPath>..\..\.godot\mono\temp\bin\Debug\sts2.dll</HintPath>
+      <HintPath>..\..\SlayTheSpire2\.godot\mono\temp\bin\Debug\sts2.dll</HintPath>
       <Private>false</Private>
     </Reference>
   </ItemGroup>

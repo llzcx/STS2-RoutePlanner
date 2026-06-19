@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Reflection;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
@@ -117,8 +118,9 @@ public static class RouteScoringConfig
     private static ScoringData _default = BuildDefault();
     private static string _lastChecksum = "";
 
-    public static string ConfigPath => Path.Combine(
-        Path.GetDirectoryName(Godot.OS.GetExecutablePath()) ?? "", "mods", "RoutePlanner", "config", "route_planner_scoring.json");
+    private static string ModDir => Path.GetDirectoryName(typeof(RouteScoringConfig).Assembly.Location) ?? "";
+
+    public static string ConfigPath => Path.Combine(ModDir, "config", "route_planner_scoring.json");
 
     public static ScoringData Current => _current;
 

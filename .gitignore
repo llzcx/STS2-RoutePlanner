@@ -1,2 +1,6 @@
-# Mod build artifacts (source .uid files)
+# Mod build artifacts
 src/*.uid
+bin/
+obj/
+logs/
+route_planner.dll
