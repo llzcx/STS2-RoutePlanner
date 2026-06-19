@@ -94,12 +94,37 @@ public partial class UIRoutePlannerPanel : Control
     private int _selectedRoute;
     private bool _weightsRefreshing; // guard against FocusExited re-entrancy during rebuild
 
+    // --- Drag ---
+    private enum DragState { None, Waiting, Dragging }
+    private DragState _dragState;
+    private float _dragTimer;
+    private Vector2 _dragStartMousePos;
+    private Vector2 _dragStartPanelPos;
+    private Label? _titleLabel;
+    private Control? _header;
+    private const float DragThreshold = 4f;
+    private const float DragHoldTime = 0.3f;
+    private Timer? _dragPollTimer;
+    private bool _initialPosSet;
+
     public UIRoutePlannerPanel(RoutePlannerInstance instance)
     {
         _instance = instance;
         Name = "RoutePlannerPanel";
         BuildUI();
         I18n.LanguageChanged += OnLanguageChanged;
+    }
+
+    public void StartDragPolling()
+    {
+        if (!_initialPosSet)
+        {
+            var vp = GetViewport()?.GetVisibleRect().Size ?? new Vector2(1920, 1080);
+            Position = new Vector2(vp.X - 420, 90);
+            OffsetBottom = Position.Y + 780f; // match collapse/expand baseline
+            _initialPosSet = true;
+        }
+        _dragPollTimer?.Start();
     }
 
     public void SetSliderValues(double dangerWeight, double rewardWeight)
@@ -720,6 +745,7 @@ public partial class UIRoutePlannerPanel : Control
 
         // Panel background — deep space with border
         var bg = new Panel();
+        bg.MouseFilter = MouseFilterEnum.Ignore;
         bg.SetAnchorsPreset(LayoutPreset.FullRect);
         var bgStyle = new StyleBoxFlat();
         bgStyle.BgColor = DeepSpaceBg;
@@ -734,6 +760,7 @@ public partial class UIRoutePlannerPanel : Control
 
         // Top accent line: warm-orange → ice-blue gradient hint
         var accentLine = new ColorRect();
+        accentLine.MouseFilter = MouseFilterEnum.Ignore;
         accentLine.SetAnchorsPreset(LayoutPreset.TopWide);
         accentLine.Color = WarmOrange;
         accentLine.CustomMinimumSize = new Vector2(0, 2);
@@ -743,6 +770,7 @@ public partial class UIRoutePlannerPanel : Control
         AddChild(accentLine);
 
         var container = new VBoxContainer();
+        container.MouseFilter = MouseFilterEnum.Pass;
         container.SetAnchorsPreset(LayoutPreset.FullRect);
         container.AddThemeConstantOverride("separation", 6);
         container.OffsetLeft = 8;
@@ -753,10 +781,13 @@ public partial class UIRoutePlannerPanel : Control
 
         // --- Header ---
         var header = new HBoxContainer();
-        var title = CreateLocalizedLabel("◇ 路线导航仪", 14, StarWhite);
-        title.AddThemeFontSizeOverride("font_size", 14);
-        header.AddChild(title);
-        header.AddChild(new Control { CustomMinimumSize = new Vector2(10, 0), SizeFlagsHorizontal = SizeFlags.ExpandFill });
+        header.MouseFilter = MouseFilterEnum.Pass;
+        _titleLabel = CreateLocalizedLabel("◇ 路线导航仪", 14, StarWhite);
+        _titleLabel.AddThemeFontSizeOverride("font_size", 14);
+        _titleLabel.MouseFilter = MouseFilterEnum.Ignore;
+        header.AddChild(_titleLabel);
+        header.AddChild(new Control { CustomMinimumSize = new Vector2(10, 0), SizeFlagsHorizontal = SizeFlags.ExpandFill, MouseFilter = MouseFilterEnum.Ignore });
+        _header = header;
 
         // Auto-draw toggle ("自绘")
         _autoDrawBtn = CreateToggleButton();
@@ -962,13 +993,14 @@ public partial class UIRoutePlannerPanel : Control
         // --- Tooltip overlay ---
         BuildTooltip();
 
-        // Set panel position and size
-        SetAnchorsPreset(LayoutPreset.TopRight);
-        OffsetLeft = -420;
-        OffsetRight = 0;
-        OffsetTop = 90;
-        OffsetBottom = 870;
+        // Position computed in StartDragPolling once viewport is known
+        SetAnchorsPreset(LayoutPreset.TopLeft);
         CustomMinimumSize = new Vector2(400, 640);
+
+        // Drag poll timer — started in _Ready when node enters tree
+        _dragPollTimer = new Timer { WaitTime = 0.05, OneShot = false };
+        _dragPollTimer.Timeout += OnDragPoll;
+        AddChild(_dragPollTimer);
     }
 
     // --- Dimension toggle handlers ---
@@ -1185,8 +1217,8 @@ public partial class UIRoutePlannerPanel : Control
             }
         }
 
-        // Collapsed: 40px height = offset_top(90) + 40 = 130
-        float targetBottom = _isCollapsed ? 130f : 850f;
+        // Collapsed: shrink to 40px height; expanded: restore to 780px
+        float targetBottom = _isCollapsed ? Position.Y + 40f : Position.Y + 780f;
         if (_isCollapsed)
             CustomMinimumSize = new Vector2(400, 0);
         var panelTween = CreateTween();
@@ -1556,5 +1588,82 @@ public partial class UIRoutePlannerPanel : Control
         _tooltipTitle = null;
         _tooltipDesc = null;
         base._ExitTree();
+    }
+
+    // --- Drag ---
+
+    private void OnDragPoll()
+    {
+        if (!Visible || _header == null || !IsInsideTree()) return;
+
+        var mousePos = GetGlobalMousePosition();
+        bool leftDown = Input.IsMouseButtonPressed(MouseButton.Left);
+        bool inHeader = IsMouseInHeader(mousePos);
+
+        if (leftDown)
+        {
+            if (_dragState == DragState.None)
+            {
+                if (!inHeader) return;
+                _dragState = DragState.Waiting;
+                _dragTimer = 0f;
+                _dragStartMousePos = mousePos;
+                _dragStartPanelPos = Position;
+            }
+            else if (_dragState == DragState.Waiting)
+            {
+                float moved = (mousePos - _dragStartMousePos).Length();
+                if (moved > DragThreshold)
+                {
+                    _dragState = DragState.None;
+                    return;
+                }
+                _dragTimer += (float)_dragPollTimer!.WaitTime;
+                if (_dragTimer >= DragHoldTime)
+                {
+                    _dragState = DragState.Dragging;
+                    MouseDefaultCursorShape = CursorShape.Drag;
+                    if (_titleLabel != null)
+                        _titleLabel.AddThemeColorOverride("font_color", Gold);
+                }
+            }
+            else if (_dragState == DragState.Dragging)
+            {
+                Position = _dragStartPanelPos + (mousePos - _dragStartMousePos);
+                ClampPosition();
+            }
+        }
+        else
+        {
+            if (_dragState == DragState.Dragging)
+            {
+                MouseDefaultCursorShape = CursorShape.Arrow;
+                if (_titleLabel != null)
+                    _titleLabel.AddThemeColorOverride("font_color", StarWhite);
+            }
+            _dragState = DragState.None;
+        }
+    }
+
+    private bool IsMouseInHeader(Vector2 mouseGlobalPos)
+    {
+        if (_header == null) return false;
+        // Exclude button area — only the title + spacer region activates drag
+        float buttonZoneStart = _autoDrawBtn?.GlobalPosition.X ?? float.MaxValue;
+        float headerLeft = _header.GlobalPosition.X;
+        float headerTop = _header.GlobalPosition.Y;
+        float headerBottom = headerTop + _header.Size.Y;
+        return mouseGlobalPos.X >= headerLeft && mouseGlobalPos.X < buttonZoneStart
+            && mouseGlobalPos.Y >= headerTop && mouseGlobalPos.Y <= headerBottom;
+    }
+
+    private void ClampPosition()
+    {
+        var viewport = GetViewport();
+        if (viewport == null) return;
+        var vpSize = viewport.GetVisibleRect().Size;
+        Position = new Vector2(
+            Math.Clamp(Position.X, 20, vpSize.X - Size.X - 20),
+            Math.Clamp(Position.Y, 20, vpSize.Y - 40));
     }
 }

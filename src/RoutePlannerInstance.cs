@@ -147,6 +147,7 @@ public class RoutePlannerInstance
         // Create UI panel
         _panel = new UIRoutePlannerPanel(this);
         mapScreen.AddChild(_panel);
+        _panel.StartDragPolling();
 
         // Create drawing manager
         _drawingManager = new RouteDrawingManager(mapScreen);
